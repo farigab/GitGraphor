@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0 - 2026-04-14
+
+- First stable release of Git Graphor.
+- Interactive Git history graph with commit details and native VS Code diff integration.
+- Built-in Git actions for fetch, pull, push, branch creation, and commit from the extension UI.
+- Working tree panel for staging, unstaging, and discarding file changes.
+
 ## 0.1.0
 
 - Initial extension scaffold
