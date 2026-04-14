@@ -3,8 +3,13 @@
   "displayName": "Git Graphor",
   "description": "Interactive Git graph explorer for Visual Studio Code with native diff integration.",
   "version": "0.1.0",
-  "publisher": "local-dev",
+  "publisher": "farigab",
   "license": "MIT",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#0D1117",
+    "theme": "dark"
+  },
   "type": "commonjs",
   "engines": {
     "vscode": "^1.95.0"
@@ -22,7 +27,6 @@
     "diff",
     "branches"
   ],
-  "icon": "media/icon.svg",
   "main": "./dist/extension.js",
   "files": [
     "dist",
@@ -117,6 +121,13 @@
     "lint": "eslint . --ext .ts,.tsx",
     "pretest": "tsc -p ./tsconfig.json --outDir out-test",
     "test": "node --test out-test/src/test/buildGraphRows.test.js out-test/src/test/gitParsers.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/farigab/gitgraphor"
+  },
+  "bugs": {
+    "url": "https://github.com/farigab/gitgraphor/issues"
   },
   "dependencies": {
     "d3": "^7.9.0",

@@ -1,63 +1,74 @@
 # Git Graphor
 
-Git Graphor is a Visual Studio Code extension project focused on Git history exploration with a custom graph experience, native diff integration and direct Git actions.
+**Git Graphor** is a Visual Studio Code extension that brings an interactive Git history graph directly into your editor — with native diff integration and Git actions built in, so you never have to leave VS Code.
 
-## Current Scope
+## Features
 
-- Interactive Git graph rendered in a webview
-- Commit list with hash, author, date and refs
-- Commit details with changed files and summary stats
-- Native VS Code diff tabs named as `file (commitA ↔ commitB)`
-- Branch actions: create, delete, checkout and merge
-- Remote actions: fetch, pull and push
-- Working tree panel with staged, unstaged and conflicted files
-- Search and filters by message, hash, author, branch and date
-- Commit context menu with checkout, cherry-pick, branch creation, copy hash and terminal integration
+### Interactive Git Graph
 
-## Architecture
+Visualize your entire commit history as a branching graph. Each node shows the commit hash, author, date and refs (local branches, remote branches and tags).
 
-The extension is separated into clear layers:
+### Native Diff Integration
 
-- `src/core`: shared models and ports
-- `src/application`: graph layout use case
-- `src/infrastructure`: Git CLI access, parsers and cache
-- `src/presentation`: VS Code webview provider and diff document provider
-- `webview/src`: React UI for the graph, details and local changes panels
+Click any file in a commit to open a native VS Code diff tab, labeled as `file (commitA ↔ commitB)`. No external tools required.
 
-## Development
+### Commit Details
 
-Install dependencies:
+Select any commit to see a full breakdown: changed files, additions/deletions per file, total stats and the full commit message.
 
-```bash
-npm install
-```
+### Branch Management
 
-Build extension and webview bundles:
+Create, delete, checkout and merge branches directly from the graph — no terminal needed.
 
-```bash
-npm run build
-```
+### Remote Actions
 
-Run typecheck:
+Fetch, pull and push from the toolbar with a single click.
 
-```bash
-npm run typecheck
-```
+### Working Tree Panel
 
-Run tests:
+Stage, unstage and discard individual files. View staged, unstaged and conflicted files side by side. Commit with a message without leaving the panel.
 
-```bash
-npm test
-```
+### Search & Filters
 
-Start extension development:
+Filter the graph by commit message, hash, author, branch or date range.
 
-1. Open this folder in VS Code.
-2. Run `npm run build` once.
-3. Press `F5` to launch an Extension Development Host.
-4. Open a Git repository in the host window and open the `Git Graphor` activity bar icon.
+### Commit Context Menu
 
-## Notes
+Right-click any commit to: checkout, cherry-pick, create a branch from it, copy the hash or open it in the terminal.
 
-- The implementation uses the Git CLI and does not store credentials.
-- The current version is optimized as a strong foundation for future additions like rebase flows, stash visualization, multi-repository support and AI insights.
+---
+
+## Requirements
+
+- Git must be installed and available in `PATH`.
+- A folder with a valid Git repository must be open in VS Code.
+
+---
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `Git Graphor: Open Graph` | Opens the Git Graphor panel |
+| `Git Graphor: Refresh` | Reloads the graph |
+| `Git Graphor: Fetch` | Fetches from remote |
+| `Git Graphor: Pull` | Pulls from remote |
+| `Git Graphor: Push` | Pushes to remote |
+| `Git Graphor: Create Branch` | Creates a new branch |
+| `Git Graphor: Commit Changes` | Commits staged changes |
+
+All commands are also accessible from the Command Palette (`Ctrl+Shift+P`).
+
+---
+
+## Getting Started
+
+1. Open a Git repository in VS Code.
+2. Click the **Git Graphor** icon in the Source Control title bar, or run `Git Graphor: Open Graph` from the Command Palette.
+3. Browse commits, click to see details, and use the toolbar for branch and remote actions.
+
+---
+
+## Privacy
+
+Git Graphor uses the local Git CLI only. No data is sent to any remote service and no credentials are stored or read by the extension.
