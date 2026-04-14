@@ -65,6 +65,7 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
   public openOrReveal(): void {
     if (this.currentPanel) {
       this.currentPanel.reveal(vscode.ViewColumn.One);
+      void this.refresh();
       return;
     }
 
@@ -95,6 +96,12 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
       this.currentPanel = undefined;
       for (const d of this.panelDisposables) { d.dispose(); }
       this.panelDisposables = [];
+    }, undefined, this.panelDisposables);
+
+    panel.onDidChangeViewState(() => {
+      if (panel.visible) {
+        void this.refresh();
+      }
     }, undefined, this.panelDisposables);
 
     this.currentPanel = panel;

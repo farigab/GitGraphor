@@ -16,7 +16,40 @@ export function activate(context: vscode.ExtensionContext): void {
   const contentProvider = new GitContentProvider(repository);
   const graphViewProvider = new GitGraphViewProvider(context.extensionUri, repository, output);
 
+  let refreshTimer: NodeJS.Timeout | undefined;
+  const scheduleGraphRefresh = (): void => {
+    if (refreshTimer) {
+      clearTimeout(refreshTimer);
+    }
+
+    refreshTimer = setTimeout(() => {
+      void graphViewProvider.refresh().catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        output.appendLine(`[watcher-error] ${message}`);
+      });
+    }, 250);
+  };
+
+  const gitWatchers = [
+    vscode.workspace.createFileSystemWatcher('**/.git/HEAD'),
+    vscode.workspace.createFileSystemWatcher('**/.git/index'),
+    vscode.workspace.createFileSystemWatcher('**/.git/refs/**')
+  ];
+
+  for (const watcher of gitWatchers) {
+    watcher.onDidChange(scheduleGraphRefresh, undefined, context.subscriptions);
+    watcher.onDidCreate(scheduleGraphRefresh, undefined, context.subscriptions);
+    watcher.onDidDelete(scheduleGraphRefresh, undefined, context.subscriptions);
+  }
+
   context.subscriptions.push(output);
+  context.subscriptions.push(...gitWatchers);
+  context.subscriptions.push(new vscode.Disposable(() => {
+    if (refreshTimer) {
+      clearTimeout(refreshTimer);
+      refreshTimer = undefined;
+    }
+  }));
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(GitContentProvider.scheme, contentProvider)
   );
