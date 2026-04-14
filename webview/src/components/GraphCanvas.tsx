@@ -21,13 +21,31 @@ function CommitHoverTooltip({ data, onEnter, onLeave }: {
     onEnter: () => void;
     onLeave: () => void;
 }) {
+    const ref = useRef<HTMLDivElement>(null);
+    const [style, setStyle] = useState<CSSProperties>({ visibility: 'hidden', left: data.x, top: data.y });
+
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const padding = 8;
+        let left = data.x;
+        let top = data.y;
+        if (left + rect.width + padding > window.innerWidth) left = window.innerWidth - rect.width - padding;
+        if (left < padding) left = padding;
+        if (top + rect.height + padding > window.innerHeight) top = data.y - rect.height - 24;
+        if (top < padding) top = padding;
+        setStyle({ visibility: 'visible', left, top });
+    }, [data.x, data.y]);
+
     const branches = data.commit.refs.filter((r) => r.type === 'localBranch' || r.type === 'remoteBranch');
     const tags = data.commit.refs.filter((r) => r.type === 'tag');
 
     return (
         <div
+            ref={ref}
             className="commit-hover-tooltip"
-            style={{ left: data.x, top: data.y }}
+            style={style}
             onMouseEnter={onEnter}
             onMouseLeave={onLeave}
         >
@@ -89,7 +107,7 @@ export function GraphCanvas({ snapshot, selectedCommitHash, onSelectCommit, onOp
 
     const handleNodeMouseEnter = useCallback((event: MouseEvent<SVGGElement>, commit: CommitSummary) => {
         if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-        setHoverTooltip({ commit, x: event.clientX - 80, y: event.clientY + 16 });
+        setHoverTooltip({ commit, x: event.clientX + 14, y: event.clientY + 18 });
     }, []);
 
     const handleNodeMouseLeave = useCallback(() => {

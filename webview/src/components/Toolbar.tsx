@@ -48,9 +48,8 @@ export function Toolbar({
     return (
         <section className="toolbar panel">
             <div className="toolbar__identity">
-                <div className="toolbar__eyebrow">Git Graphor</div>
-                <h1 className="toolbar__title">Repository Graph</h1>
-                <p className="toolbar__subtitle">Visualize branches, merges, tags and working tree changes in one place.</p>
+                <span className="toolbar__eyebrow">GitGraphor</span>
+                <h1 className="toolbar__title">{snapshot.repoRoot.split(/[/\\]/).pop()}</h1>
             </div>
 
             <div className="toolbar__filters">
@@ -118,22 +117,14 @@ export function Toolbar({
 
             <div className="toolbar__status">
                 <div className="status-chip status-chip--accent">
-                    <span className="status-chip__label">Repo</span>
-                    <strong>{snapshot.repoRoot.split(/[/\\]/).pop()}</strong>
-                </div>
-                <div className="status-chip">
                     <span className="status-chip__label">HEAD</span>
                     <strong>{activeBranch ?? 'detached'}</strong>
                 </div>
                 <div className="status-chip">
-                    <span className="status-chip__label">Sync</span>
-                    <strong>
-                        ↑{snapshot.localChanges.ahead} ↓{snapshot.localChanges.behind}
-                    </strong>
+                    <span className="status-chip__label">↑{snapshot.localChanges.ahead} ↓{snapshot.localChanges.behind}</span>
                 </div>
                 <div className="status-chip">
-                    <span className="status-chip__label">Graph</span>
-                    <strong>{snapshot.rows.length} commits</strong>
+                    <span className="status-chip__label">{snapshot.rows.length} commits</span>
                 </div>
             </div>
 
