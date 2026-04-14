@@ -4,6 +4,7 @@ import type {
     DiffRequest,
     GraphFilters,
     GraphSnapshot,
+    RepoGitConfig,
     WorkingTreeStatus
 } from '../models/GitModels';
 
@@ -32,4 +33,8 @@ export interface GitRepository {
   rebase(repoRoot: string, onto: string): Promise<void>;
   resetTo(repoRoot: string, commitHash: string, mode: 'soft' | 'mixed' | 'hard'): Promise<void>;
   openDiff(request: DiffRequest): Promise<void>;
+  getRepoConfig(repoRoot: string): Promise<RepoGitConfig>;
+  setGitUserName(repoRoot: string, name: string): Promise<void>;
+  setGitUserEmail(repoRoot: string, email: string): Promise<void>;
+  setRemoteUrl(repoRoot: string, remoteName: string, url: string): Promise<void>;
 }

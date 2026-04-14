@@ -68,8 +68,8 @@ export function parseBranchList(raw: string): BranchSummary[] {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const [name, targetHash, upstream, headMarker, tracking] = line.split(FIELD_SEPARATOR);
-      const remote = name.startsWith('origin/') || name.startsWith('refs/remotes/');
+      const [name, targetHash, upstream, headMarker, tracking] = line.split('\t');
+      const remote = name.startsWith('refs/remotes/');
       const shortName = name.replace(/^refs\/heads\//, '').replace(/^refs\/remotes\//, '');
 
       return {

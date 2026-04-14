@@ -140,5 +140,9 @@
     "esbuild": "^0.28.0",
     "eslint": "^10.2.0",
     "typescript": "^6.0.2"
+  },
+  "overrides": {
+    "diff": "^8.0.3",
+    "serialize-javascript": "^7.0.5"
   }
 }

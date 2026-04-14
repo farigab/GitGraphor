@@ -27,7 +27,11 @@ export type WebviewToExtensionMessage =
   | { type: 'stageFile'; payload: { repoRoot: string; file: WorkingTreeFile } }
   | { type: 'unstageFile'; payload: { repoRoot: string; file: WorkingTreeFile } }
   | { type: 'discardFile'; payload: { repoRoot: string; file: WorkingTreeFile } }
-  | { type: 'commitChangesPrompt'; payload: { repoRoot: string } };
+  | { type: 'commitChangesPrompt'; payload: { repoRoot: string } }
+  | { type: 'setGitUserName'; payload: { repoRoot: string; name: string } }
+  | { type: 'setGitUserEmail'; payload: { repoRoot: string; email: string } }
+  | { type: 'setRemoteUrl'; payload: { repoRoot: string; remoteName: string; url: string } }
+  | { type: 'openPullRequest'; payload: { repoRoot: string; sourceBranch: string; targetBranch: string; title: string; description: string } };
 
 export type ExtensionToWebviewMessage =
   | { type: 'graphSnapshot'; payload: GraphSnapshot }

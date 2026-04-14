@@ -2,7 +2,9 @@ import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 
 import type { CommitDetail, CommitFileChange, CommitSummary, DiffRequest, GraphFilters, GraphSnapshot } from '../../src/core/models/GitModels';
 import type { ExtensionToWebviewMessage } from '../../src/shared/protocol';
 import { CommitDetails } from './components/CommitDetails';
+import { CreatePRModal } from './components/CreatePRModal';
 import { GraphCanvas } from './components/GraphCanvas';
+import { RepoSettingsModal } from './components/RepoSettingsModal';
 import { vscode } from './vscode';
 
 interface ContextMenuState {
@@ -28,6 +30,8 @@ export function App() {
     const [busy, setBusy] = useState<{ value: boolean; label?: string }>({ value: false });
     const [notification, setNotification] = useState<{ kind: 'info' | 'error'; message: string } | null>(null);
     const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [prOpen, setPrOpen] = useState(false);
 
     const deferredFilters = {
         ...filters,
@@ -204,6 +208,8 @@ export function App() {
                     onSelectCommit={handleSelectCommit}
                     onOpenContextMenu={(commit, point) => setContextMenu({ commit, ...point })}
                     onLoadMore={(limit) => vscode.postMessage({ type: 'loadMore', payload: { limit } })}
+                    onOpenSettings={() => setSettingsOpen(true)}
+                    onOpenPR={() => setPrOpen(true)}
                 />
 
                 <aside className="sidebar">
@@ -251,6 +257,20 @@ export function App() {
 
             {busy.value ? <div className="busy-indicator">{busy.label ?? 'Processing...'}</div> : null}
             {notification ? <div className={`toast toast--${notification.kind}`}>{notification.message}</div> : null}
+            {settingsOpen ? (
+                <RepoSettingsModal
+                    snapshot={snapshot}
+                    filters={filters}
+                    onChangeFilters={setFilters}
+                    onClose={() => setSettingsOpen(false)}
+                />
+            ) : null}
+            {prOpen ? (
+                <CreatePRModal
+                    snapshot={snapshot}
+                    onClose={() => setPrOpen(false)}
+                />
+            ) : null}
         </main>
     );
 }

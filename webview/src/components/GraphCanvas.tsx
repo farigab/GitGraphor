@@ -8,6 +8,8 @@ interface GraphCanvasProps {
     onSelectCommit: (commit: CommitSummary) => void;
     onOpenContextMenu: (commit: CommitSummary, point: { x: number; y: number }) => void;
     onLoadMore: (limit: number) => void;
+    onOpenSettings: () => void;
+    onOpenPR: () => void;
 }
 
 interface HoverTooltip {
@@ -96,7 +98,7 @@ function getLaneColor(lane: number): string {
     return PALETTE[lane % PALETTE.length];
 }
 
-export function GraphCanvas({ snapshot, selectedCommitHash, onSelectCommit, onOpenContextMenu, onLoadMore }: GraphCanvasProps) {
+export function GraphCanvas({ snapshot, selectedCommitHash, onSelectCommit, onOpenContextMenu, onLoadMore, onOpenSettings, onOpenPR }: GraphCanvasProps) {
     const rowHeight = 40;
     const laneGap = 20;
     const graphWidth = Math.max(110, 52 + (snapshot.maxLane + 1) * laneGap);
@@ -207,6 +209,26 @@ export function GraphCanvas({ snapshot, selectedCommitHash, onSelectCommit, onOp
                 <div>
                     <span className="panel__eyebrow">Commit Graph</span>
                     <h2>History</h2>
+                </div>
+                <div className="panel__header-actions">
+                    <button
+                        type="button"
+                        className="panel__settings-btn"
+                        onClick={onOpenPR}
+                        title="Create Pull Request"
+                        aria-label="Create Pull Request"
+                    >
+                        <i className="codicon codicon-git-pull-request-create" aria-hidden="true" />
+                    </button>
+                    <button
+                        type="button"
+                        className="panel__settings-btn"
+                        onClick={onOpenSettings}
+                        title="Repository Settings"
+                        aria-label="Repository Settings"
+                    >
+                        <i className="codicon codicon-settings-gear" aria-hidden="true" />
+                    </button>
                 </div>
             </header>
 

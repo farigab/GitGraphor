@@ -13,6 +13,7 @@ interface ToolbarProps {
     onCheckoutBranch: (branchName: string) => void;
     onDeleteBranch: (branchName: string) => void;
     onMergeBranch: (branchName: string) => void;
+    onOpenSettings: () => void;
 }
 
 function branchSort(left: BranchSummary, right: BranchSummary): number {
@@ -39,7 +40,8 @@ export function Toolbar({
     onCommit,
     onCheckoutBranch,
     onDeleteBranch,
-    onMergeBranch
+    onMergeBranch,
+    onOpenSettings
 }: ToolbarProps) {
     const localBranches = snapshot.branches.filter((branch) => !branch.remote).sort(branchSort);
     const activeBranch = snapshot.localChanges.currentBranch;
@@ -48,8 +50,19 @@ export function Toolbar({
     return (
         <section className="toolbar panel">
             <div className="toolbar__identity">
-                <span className="toolbar__eyebrow">GitGraphor</span>
-                <h1 className="toolbar__title">{snapshot.repoRoot.split(/[/\\]/).pop()}</h1>
+                <div>
+                    <span className="toolbar__eyebrow">GitGraphor</span>
+                    <h1 className="toolbar__title">{snapshot.repoRoot.split(/[/\\]/).pop()}</h1>
+                </div>
+                <button
+                    type="button"
+                    className="toolbar__settings-btn"
+                    onClick={onOpenSettings}
+                    title="Repository Settings"
+                    aria-label="Repository Settings"
+                >
+                    <i className="codicon codicon-settings-gear" aria-hidden="true" />
+                </button>
             </div>
 
             <div className="toolbar__filters">

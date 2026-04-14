@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { GraphFilters } from '../../core/models/GitModels';
+import type { BranchSummary, GraphFilters, RepoRemote } from '../../core/models/GitModels';
 import type { GitRepository } from '../../core/ports/GitRepository';
 import { createNonce } from '../../shared/nonce';
 import type { ExtensionToWebviewMessage, WebviewToExtensionMessage } from '../../shared/protocol';
@@ -387,9 +387,94 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
         });
         return;
       }
+      case 'setGitUserName': {
+        await this.executeRepositoryAction('Salvando user.name...', async () => {
+          await this.repository.setGitUserName(message.payload.repoRoot, message.payload.name);
+        });
+        return;
+      }
+      case 'setGitUserEmail': {
+        await this.executeRepositoryAction('Salvando user.email...', async () => {
+          await this.repository.setGitUserEmail(message.payload.repoRoot, message.payload.email);
+        });
+        return;
+      }
+      case 'setRemoteUrl': {
+        await this.executeRepositoryAction('Salvando URL do remote...', async () => {
+          await this.repository.setRemoteUrl(message.payload.repoRoot, message.payload.remoteName, message.payload.url);
+        });
+        return;
+      }
+      case 'openPullRequest': {
+        const { repoRoot, sourceBranch, targetBranch, title, description } = message.payload;
+        const [config, branches] = await Promise.all([
+          this.repository.getRepoConfig(repoRoot),
+          this.repository.getBranches(repoRoot)
+        ]);
+        const remote = this.resolvePreferredRemoteForPullRequest(sourceBranch, branches, config.remotes);
+        const remoteUrl = remote?.url ?? '';
+
+        // Detect GitHub / GitLab / Bitbucket and build the compare URL
+        const prUrl = this.buildPrUrl(remoteUrl, sourceBranch, targetBranch, title, description);
+        if (prUrl) {
+          await vscode.env.openExternal(vscode.Uri.parse(prUrl));
+        } else {
+          await vscode.window.showWarningMessage(
+            `Não foi possível detectar a URL do PR. Remote: ${remoteUrl || '(none)'}`
+          );
+        }
+        return;
+      }
       default:
         return;
     }
+  }
+
+  private resolvePreferredRemoteForPullRequest(sourceBranch: string, branches: BranchSummary[], remotes: RepoRemote[]): RepoRemote | undefined {
+    if (remotes.length === 0) {
+      return undefined;
+    }
+
+    const source = branches.find((branch) => !branch.remote && branch.shortName === sourceBranch);
+    const upstreamRemoteName = source?.upstream?.split('/')[0];
+    if (upstreamRemoteName) {
+      const upstreamRemote = remotes.find((remote) => remote.name === upstreamRemoteName);
+      if (upstreamRemote) {
+        return upstreamRemote;
+      }
+    }
+
+    const origin = remotes.find((remote) => remote.name === 'origin');
+    return origin ?? remotes[0];
+  }
+
+  private buildPrUrl(remoteUrl: string, source: string, target: string, title: string, description: string): string | null {
+    // Normalize SSH → HTTPS
+    const normalized = remoteUrl
+      .replace(/^git@github\.com:/, 'https://github.com/')
+      .replace(/^git@gitlab\.com:/, 'https://gitlab.com/')
+      .replace(/^git@bitbucket\.org:/, 'https://bitbucket.org/')
+      .replace(/\.git$/, '');
+
+    const enc = encodeURIComponent;
+    const encodedTitle = title ? `&title=${enc(title)}` : '';
+    const encodedDescription = description ? `&body=${enc(description)}` : '';
+
+    if (/github\.com/.test(normalized)) {
+      const base = `${normalized}/compare/${enc(target)}...${enc(source)}`;
+      const params = `?quick_pull=1${encodedTitle}${encodedDescription}`;
+      return base + params;
+    }
+
+    if (/gitlab\.com/.test(normalized)) {
+      return `${normalized}/-/merge_requests/new?merge_request[source_branch]=${enc(source)}&merge_request[target_branch]=${enc(target)}${title ? `&merge_request[title]=${enc(title)}` : ''}${description ? `&merge_request[description]=${enc(description)}` : ''}`;
+    }
+
+    if (/bitbucket\.org/.test(normalized)) {
+      return `${normalized}/pull-requests/new?source=${enc(source)}&dest=${enc(target)}${title ? `&title=${enc(title)}` : ''}${description ? `&description=${enc(description)}` : ''}`;
+    }
+
+    return null;
   }
 
   private async executeRepositoryAction(label: string, action: () => Promise<void>): Promise<void> {

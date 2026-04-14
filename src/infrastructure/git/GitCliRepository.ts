@@ -10,6 +10,7 @@ import type {
     DiffRequest,
     GraphFilters,
     GraphSnapshot,
+    RepoGitConfig,
     WorkingTreeStatus
 } from '../../core/models/GitModels';
 import type { GitRepository } from '../../core/ports/GitRepository';
@@ -106,10 +107,11 @@ export class GitCliRepository implements GitRepository {
       }
     }
 
-    const [rawLog, branches, localChanges] = await Promise.all([
+    const [rawLog, branches, localChanges, repoConfig] = await Promise.all([
       this.runGit(repoRoot, logArgs),
       branchesPromise,
-      localChangesPromise
+      localChangesPromise,
+      this.getRepoConfig(repoRoot)
     ]);
 
     const filteredCommits = parseCommitLog(rawLog, this.hasDirtyChanges(localChanges)).filter((commit) => {
@@ -137,7 +139,8 @@ export class GitCliRepository implements GitRepository {
       localChanges,
       filters,
       hasMore,
-      maxLane: graph.maxLane
+      maxLane: graph.maxLane,
+      repoConfig
     };
 
     this.graphCache.set(cacheKey, snapshot);
@@ -179,7 +182,7 @@ export class GitCliRepository implements GitRepository {
   public async getBranches(repoRoot: string): Promise<BranchSummary[]> {
     const raw = await this.runGit(repoRoot, [
       'for-each-ref',
-      '--format=%(refname:short)%x1f%(objectname)%x1f%(upstream:short)%x1f%(HEAD)%x1f%(upstream:trackshort)',
+      '--format=%(refname)	%(objectname)	%(upstream:short)	%(HEAD)	%(upstream:trackshort)',
       'refs/heads',
       'refs/remotes'
     ]);
@@ -307,6 +310,41 @@ export class GitCliRepository implements GitRepository {
 
   public async openDiff(request: DiffRequest): Promise<void> {
     await this.openDiffHandler(request);
+  }
+
+  public async getRepoConfig(repoRoot: string): Promise<RepoGitConfig> {
+    const [userName, userEmail, remoteRaw] = await Promise.all([
+      this.runGit(repoRoot, ['config', '--get', 'user.name']).catch(() => ''),
+      this.runGit(repoRoot, ['config', '--get', 'user.email']).catch(() => ''),
+      this.runGit(repoRoot, ['remote', '-v']).catch(() => '')
+    ]);
+
+    const seenRemotes = new Set<string>();
+    const remotes: RepoGitConfig['remotes'] = [];
+    for (const line of remoteRaw.split('\n')) {
+      const match = /^(\S+)\s+(\S+)\s+\(fetch\)/.exec(line);
+      if (match && !seenRemotes.has(match[1])) {
+        seenRemotes.add(match[1]);
+        remotes.push({ name: match[1], url: match[2] });
+      }
+    }
+
+    return { userName: userName.trim(), userEmail: userEmail.trim(), remotes };
+  }
+
+  public async setGitUserName(repoRoot: string, name: string): Promise<void> {
+    await this.runGit(repoRoot, ['config', 'user.name', name]);
+    this.graphCache.clear();
+  }
+
+  public async setGitUserEmail(repoRoot: string, email: string): Promise<void> {
+    await this.runGit(repoRoot, ['config', 'user.email', email]);
+    this.graphCache.clear();
+  }
+
+  public async setRemoteUrl(repoRoot: string, remoteName: string, url: string): Promise<void> {
+    await this.runGit(repoRoot, ['remote', 'set-url', remoteName, url]);
+    this.graphCache.clear();
   }
 
   private hasDirtyChanges(localChanges: WorkingTreeStatus): boolean {

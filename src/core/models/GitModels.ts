@@ -85,6 +85,17 @@ export interface GraphFilters {
   limit: number;
 }
 
+export interface RepoRemote {
+  name: string;
+  url: string;
+}
+
+export interface RepoGitConfig {
+  userName: string;
+  userEmail: string;
+  remotes: RepoRemote[];
+}
+
 export interface GraphSnapshot {
   repoRoot: string;
   generatedAt: string;
@@ -94,6 +105,7 @@ export interface GraphSnapshot {
   filters: GraphFilters;
   hasMore: boolean;
   maxLane: number;
+  repoConfig: RepoGitConfig;
 }
 
 export interface DiffRequest {
