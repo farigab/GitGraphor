@@ -37,8 +37,8 @@ export function App() {
     const [prOpen, setPrOpen] = useState(false);
     const [deleteBranchesOpen, setDeleteBranchesOpen] = useState(false);
     const [isUncommittedSelected, setIsUncommittedSelected] = useState(false);
-    const [isCommitDetailsOpen, setIsCommitDetailsOpen] = useState(true);
-    const requestedCommitHashRef = useRef<string>();
+    const [isCommitDetailsOpen, setIsCommitDetailsOpen] = useState(false);
+    const requestedCommitHashRef = useRef<string | undefined>(undefined);
 
     const deferredFilters = {
         ...filters,
@@ -86,15 +86,9 @@ export function App() {
         }
 
         if (!selectedCommitHash || !snapshot.rows.some((row) => row.commit.hash === selectedCommitHash)) {
-            const firstCommit = snapshot.rows[0]?.commit;
-            if (firstCommit) {
-                requestedCommitHashRef.current = firstCommit.hash;
-                setSelectedCommitHash(firstCommit.hash);
-                vscode.postMessage({
-                    type: 'selectCommit',
-                    payload: { repoRoot: snapshot.repoRoot, commitHash: firstCommit.hash }
-                });
-            }
+            requestedCommitHashRef.current = undefined;
+            setSelectedCommitHash(undefined);
+            return;
         }
     }, [snapshot, selectedCommitHash, isUncommittedSelected]);
 
@@ -129,13 +123,21 @@ export function App() {
             return;
         }
 
-        setIsUncommittedSelected(false);
-        requestedCommitHashRef.current = commit.hash;
-        setSelectedCommitHash(commit.hash);
-        vscode.postMessage({
-            type: 'selectCommit',
-            payload: { repoRoot: snapshot.repoRoot, commitHash: commit.hash }
-        });
+        if (requestedCommitHashRef.current === commit.hash && isCommitDetailsOpen) {
+            setIsCommitDetailsOpen(false);
+            setSelectedCommit(null);
+            setSelectedCommitHash(undefined);
+            requestedCommitHashRef.current = undefined;
+        } else {
+            setIsUncommittedSelected(false);
+            requestedCommitHashRef.current = commit.hash;
+            setSelectedCommitHash(commit.hash);
+            setIsCommitDetailsOpen(true);
+            vscode.postMessage({
+                type: 'selectCommit',
+                payload: { repoRoot: snapshot.repoRoot, commitHash: commit.hash }
+            });
+        }
     };
 
     const handleOpenDiff = (file: CommitFileChange, detail: CommitDetail): void => {
