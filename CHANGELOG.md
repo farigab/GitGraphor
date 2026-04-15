@@ -4,6 +4,7 @@
 
 - Redesign find bar: search icon embedded inside input, option buttons (Aa / ab / .*) grouped in a single segmented control with dividers, match counter displayed as a pill, navigation arrows grouped side by side.
 - Remove unused `Toolbar` component and all associated CSS classes.
+- Show uncommitted files in the commit graph.
 
 ## 1.1.2 - 2026-04-15
 
