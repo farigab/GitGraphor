@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.3 - 2026-04-15
+
+- Redesign find bar: search icon embedded inside input, option buttons (Aa / ab / .*) grouped in a single segmented control with dividers, match counter displayed as a pill, navigation arrows grouped side by side.
+- Remove unused `Toolbar` component and all associated CSS classes.
+
+## 1.1.2 - 2026-04-15
+
+- Improve find-bar appearance with icon-wrapped inputs and toggle pill styles.
+
 ## 1.1.1 - 2026-04-14
 
 - Maintenance release for Marketplace republish.
