@@ -1,10 +1,11 @@
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import type { CommitDetail, CommitFileChange, CommitSummary, DiffRequest, GraphFilters, GraphSnapshot } from '../../src/core/models/GitModels';
+import type { CommitDetail, CommitFileChange, CommitSummary, DiffRequest, GraphFilters, GraphSnapshot, WorkingTreeFile } from '../../src/core/models/GitModels';
 import type { ExtensionToWebviewMessage } from '../../src/shared/protocol';
 import { CommitDetails } from './components/CommitDetails';
 import { CreatePRModal } from './components/CreatePRModal';
 import { DeleteBranchesModal } from './components/DeleteBranchesModal';
 import { GraphCanvas } from './components/GraphCanvas';
+import { LocalChangesPanel } from './components/LocalChangesPanel';
 import { RepoSettingsModal } from './components/RepoSettingsModal';
 import { useResizableSplit } from './hooks/useResizableSplit';
 import { vscode } from './vscode';
@@ -35,6 +36,7 @@ export function App() {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [prOpen, setPrOpen] = useState(false);
     const [deleteBranchesOpen, setDeleteBranchesOpen] = useState(false);
+    const [isUncommittedSelected, setIsUncommittedSelected] = useState(false);
 
     const deferredFilters = {
         ...filters,
@@ -73,7 +75,7 @@ export function App() {
     }, []);
 
     useEffect(() => {
-        if (!snapshot) {
+        if (!snapshot || isUncommittedSelected) {
             return;
         }
 
@@ -87,7 +89,7 @@ export function App() {
                 });
             }
         }
-    }, [snapshot, selectedCommitHash]);
+    }, [snapshot, selectedCommitHash, isUncommittedSelected]);
 
     useEffect(() => {
         if (!snapshot) {
@@ -119,6 +121,7 @@ export function App() {
             return;
         }
 
+        setIsUncommittedSelected(false);
         setSelectedCommitHash(commit.hash);
         vscode.postMessage({
             type: 'selectCommit',
@@ -140,6 +143,31 @@ export function App() {
         };
 
         vscode.postMessage({ type: 'openDiff', payload: request });
+    };
+
+    const handleSelectUncommitted = (): void => {
+        setIsUncommittedSelected(true);
+        setSelectedCommitHash(undefined);
+    };
+
+    const handleStageFile = (file: WorkingTreeFile): void => {
+        if (!snapshot) return;
+        vscode.postMessage({ type: 'stageFile', payload: { repoRoot: snapshot.repoRoot, file } });
+    };
+
+    const handleUnstageFile = (file: WorkingTreeFile): void => {
+        if (!snapshot) return;
+        vscode.postMessage({ type: 'unstageFile', payload: { repoRoot: snapshot.repoRoot, file } });
+    };
+
+    const handleDiscardFile = (file: WorkingTreeFile): void => {
+        if (!snapshot) return;
+        vscode.postMessage({ type: 'discardFile', payload: { repoRoot: snapshot.repoRoot, file } });
+    };
+
+    const handleCommit = (): void => {
+        if (!snapshot) return;
+        vscode.postMessage({ type: 'commitChangesPrompt', payload: { repoRoot: snapshot.repoRoot } });
     };
 
     const handleContextAction = (action: 'checkout' | 'cherryPick' | 'revert' | 'drop' | 'createBranch' | 'merge' | 'rebase' | 'reset' | 'copyHash' | 'copySubject' | 'openTerminal'): void => {
@@ -216,7 +244,9 @@ export function App() {
                 <GraphCanvas
                     snapshot={snapshot}
                     selectedCommitHash={selectedCommitHash}
+                    selectedUncommitted={isUncommittedSelected}
                     onSelectCommit={handleSelectCommit}
+                    onSelectUncommitted={handleSelectUncommitted}
                     onOpenContextMenu={(commit, point) => setContextMenu({ commit, ...point })}
                     onLoadMore={(limit) => vscode.postMessage({ type: 'loadMore', payload: { limit } })}
                     onOpenSettings={() => setSettingsOpen(true)}
@@ -226,7 +256,16 @@ export function App() {
 
                 <div className="resizer" onMouseDown={onDividerMouseDown} />
                 <aside className="sidebar">
-                    <CommitDetails detail={selectedCommit} repoRoot={snapshot.repoRoot} onOpenDiff={handleOpenDiff} />
+                    {isUncommittedSelected && (snapshot.localChanges.staged.length + snapshot.localChanges.unstaged.length + snapshot.localChanges.conflicted.length) > 0
+                        ? <LocalChangesPanel
+                            status={snapshot.localChanges}
+                            onStage={handleStageFile}
+                            onUnstage={handleUnstageFile}
+                            onDiscard={handleDiscardFile}
+                            onCommit={handleCommit}
+                        />
+                        : <CommitDetails detail={selectedCommit} repoRoot={snapshot.repoRoot} onOpenDiff={handleOpenDiff} />
+                    }
                 </aside>
             </section>
 

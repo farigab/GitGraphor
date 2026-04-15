@@ -5,7 +5,9 @@ import type { CommitSummary, GraphSnapshot } from '../../../src/core/models/GitM
 interface GraphCanvasProps {
     snapshot: GraphSnapshot;
     selectedCommitHash?: string;
+    selectedUncommitted: boolean;
     onSelectCommit: (commit: CommitSummary) => void;
+    onSelectUncommitted: () => void;
     onOpenContextMenu: (commit: CommitSummary, point: { x: number; y: number }) => void;
     onLoadMore: (limit: number) => void;
     onOpenSettings: () => void;
@@ -127,11 +129,20 @@ function highlightText(text: string, pattern: RegExp | null): ReactNode {
     return <>{parts}</>;
 }
 
-export function GraphCanvas({ snapshot, selectedCommitHash, onSelectCommit, onOpenContextMenu, onLoadMore, onOpenSettings, onOpenPR, onOpenDeleteBranches }: GraphCanvasProps) {
+export function GraphCanvas({ snapshot, selectedCommitHash, selectedUncommitted, onSelectCommit, onSelectUncommitted, onOpenContextMenu, onLoadMore, onOpenSettings, onOpenPR, onOpenDeleteBranches }: GraphCanvasProps) {
     const rowHeight = 46;
     const laneGap = 20;
     const graphWidth = Math.max(110, 52 + (snapshot.maxLane + 1) * laneGap);
-    const totalHeight = snapshot.rows.length * rowHeight;
+    const totalChanges = snapshot.localChanges.staged.length + snapshot.localChanges.unstaged.length + snapshot.localChanges.conflicted.length;
+    const hasUncommitted = totalChanges > 0;
+    const uncommittedOffset = hasUncommitted ? rowHeight : 0;
+    const totalHeight = snapshot.rows.length * rowHeight + uncommittedOffset;
+    const uncommittedHeadRow = hasUncommitted ? snapshot.rows.find((r) => r.commit.isHead) : undefined;
+    const uncommittedLane = uncommittedHeadRow?.lane ?? 0;
+    const uncommittedNodeX = 32 + uncommittedLane * laneGap;
+    const uncommittedNodeY = rowHeight / 2;
+    const uncommittedEdgeEndY = uncommittedOffset + (uncommittedHeadRow?.row ?? 0) * rowHeight + rowHeight / 2;
+    const uncommittedEdgeMidY = uncommittedNodeY + (uncommittedEdgeEndY - uncommittedNodeY) / 2;
 
     const viewportRef = useRef<HTMLDivElement>(null);
     const loadingRef = useRef(false);
@@ -380,11 +391,45 @@ export function GraphCanvas({ snapshot, selectedCommitHash, onSelectCommit, onOp
                             </pattern>
                         </defs>
                         <rect x="0" y="0" width={graphWidth} height={totalHeight} fill="url(#grid)" />
-                        {edges}
-                        {nodes}
+                        {hasUncommitted && (
+                            <>
+                                {uncommittedHeadRow !== undefined && (
+                                    <path
+                                        d={`M ${uncommittedNodeX} ${uncommittedNodeY} C ${uncommittedNodeX} ${uncommittedEdgeMidY}, ${uncommittedNodeX} ${uncommittedEdgeMidY}, ${uncommittedNodeX} ${uncommittedEdgeEndY}`}
+                                        fill="none"
+                                        stroke={getLaneColor(uncommittedLane)}
+                                        strokeOpacity={0.85}
+                                        strokeWidth={1.5}
+                                        strokeDasharray="4 3"
+                                        strokeLinecap="round"
+                                    />
+                                )}
+                                <circle cx={uncommittedNodeX} cy={uncommittedNodeY} r={12} fill="transparent" onClick={onSelectUncommitted} style={{ cursor: 'pointer' }} />
+                                <circle cx={uncommittedNodeX} cy={uncommittedNodeY} r={selectedUncommitted ? 6 : 4.5} fill="none" stroke={getLaneColor(uncommittedLane)} strokeWidth={selectedUncommitted ? 2 : 1.5} />
+                            </>
+                        )}
+                        <g transform={`translate(0, ${uncommittedOffset})`}>
+                            {edges}
+                            {nodes}
+                        </g>
                     </svg>
 
                     <div className="graph__rows">
+                        {hasUncommitted && (
+                            <button
+                                type="button"
+                                className={`graph-row${selectedUncommitted ? ' graph-row--selected' : ''}`}
+                                onClick={onSelectUncommitted}
+                            >
+                                <div className="graph-row__title-line">
+                                    <span className="graph-row__subject">Uncommitted Changes ({totalChanges})</span>
+                                </div>
+                                <div className="graph-row__meta">
+                                    <span>*</span>
+                                    <span>*</span>
+                                </div>
+                            </button>
+                        )}
                         {snapshot.rows.map((row) => {
                             const isSelected = row.commit.hash === selectedCommitHash;
                             const matchIdx = matchIndexByHash.get(row.commit.hash);
