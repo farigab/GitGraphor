@@ -353,30 +353,41 @@ export function GraphCanvas({ snapshot, selectedCommitHash, selectedUncommitted,
 
             {searchOpen && (
                 <div className="find-bar" role="search">
-                    <input
-                        ref={searchInputRef}
-                        className="find-bar__input"
-                        type="text"
-                        placeholder="Find"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={handleFindKeyDown}
-                        aria-label="Find in commit history"
-                        spellCheck={false}
-                    />
-                    <button type="button" className={`find-bar__opt${caseSensitive ? ' find-bar__opt--on' : ''}`} title="Match Case (Alt+C)" onClick={() => setCaseSensitive((v) => !v)} aria-pressed={caseSensitive}>Aa</button>
-                    <button type="button" className={`find-bar__opt${wholeWord ? ' find-bar__opt--on' : ''}`} title="Match Whole Word (Alt+W)" onClick={() => setWholeWord((v) => !v)} aria-pressed={wholeWord}>ab</button>
-                    <button type="button" className={`find-bar__opt${useRegex ? ' find-bar__opt--on' : ''}`} title="Use Regular Expression (Alt+R)" onClick={() => setUseRegex((v) => !v)} aria-pressed={useRegex}>.*</button>
-                    <span className="find-bar__count">
-                        {searchQuery ? (matchedRows.length === 0 ? 'No results' : `${currentMatchIndex + 1} of ${matchedRows.length}`) : ''}
+                    <div className="find-bar__search-wrap">
+                        <i className="codicon codicon-search find-bar__search-icon" aria-hidden="true" />
+                        <input
+                            ref={searchInputRef}
+                            className="find-bar__input"
+                            type="text"
+                            placeholder="Find in history…"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={handleFindKeyDown}
+                            aria-label="Find in commit history"
+                            spellCheck={false}
+                        />
+                    </div>
+                    <div className="find-bar__opts" role="group" aria-label="Search options">
+                        <button type="button" className={`find-bar__opt${caseSensitive ? ' find-bar__opt--on' : ''}`} title="Match Case (Alt+C)" onClick={() => setCaseSensitive((v) => !v)} aria-pressed={caseSensitive}>Aa</button>
+                        <div className="find-bar__divider" />
+                        <button type="button" className={`find-bar__opt${wholeWord ? ' find-bar__opt--on' : ''}`} title="Match Whole Word (Alt+W)" onClick={() => setWholeWord((v) => !v)} aria-pressed={wholeWord}>ab</button>
+                        <div className="find-bar__divider" />
+                        <button type="button" className={`find-bar__opt${useRegex ? ' find-bar__opt--on' : ''}`} title="Use Regular Expression (Alt+R)" onClick={() => setUseRegex((v) => !v)} aria-pressed={useRegex}>.*</button>
+                    </div>
+                    <span className="find-bar__count" aria-live="polite">
+                        {searchQuery
+                            ? (matchedRows.length === 0 ? 'No results' : `${currentMatchIndex + 1} / ${matchedRows.length}`)
+                            : '\u00a0'}
                     </span>
-                    <button type="button" className="find-bar__nav" onClick={prevMatch} title="Previous Match (Shift+Enter)" disabled={matchedRows.length === 0}>
-                        <i className="codicon codicon-arrow-up" aria-hidden="true" />
-                    </button>
-                    <button type="button" className="find-bar__nav" onClick={nextMatch} title="Next Match (Enter)" disabled={matchedRows.length === 0}>
-                        <i className="codicon codicon-arrow-down" aria-hidden="true" />
-                    </button>
-                    <button type="button" className="find-bar__close" onClick={closeSearch} title="Close (Escape)">
+                    <div className="find-bar__nav-group">
+                        <button type="button" className="find-bar__nav" onClick={prevMatch} title="Previous Match (Shift+Enter)" disabled={matchedRows.length === 0}>
+                            <i className="codicon codicon-arrow-up" aria-hidden="true" />
+                        </button>
+                        <button type="button" className="find-bar__nav" onClick={nextMatch} title="Next Match (Enter)" disabled={matchedRows.length === 0}>
+                            <i className="codicon codicon-arrow-down" aria-hidden="true" />
+                        </button>
+                    </div>
+                    <button type="button" className="find-bar__close" onClick={closeSearch} title="Close (Escape)" aria-label="Close search">
                         <i className="codicon codicon-close" aria-hidden="true" />
                     </button>
                 </div>
