@@ -1295,3 +1295,363 @@ mark.find-highlight {
   background: var(--vscode-button-hoverBackground, color-mix(in srgb, var(--accent) 85%, white 15%));
   border-color: transparent;
 }
+
+/* ── Stash Modal ────────────────────────────────────────────── */
+
+.stash-modal {
+  max-width: 600px;
+}
+
+/* Tab bar */
+.stash-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.stash-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--muted);
+  transition: color 100ms ease, border-color 100ms ease;
+  margin-bottom: -1px;
+}
+
+.stash-tab:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel) 70%, var(--text) 8%);
+  border-bottom-color: transparent;
+}
+
+.stash-tab--active {
+  color: var(--text);
+  border-bottom: 2px solid var(--accent);
+}
+
+.stash-tab--active:hover {
+  border-bottom-color: var(--accent);
+}
+
+.stash-tab__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.2rem;
+  height: 1.2rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--panel) 40%, var(--text) 20%);
+  color: var(--text);
+  line-height: 1;
+}
+
+.stash-tab__badge--warning {
+  background: color-mix(in srgb, var(--warning) 25%, transparent 75%);
+  color: var(--warning);
+}
+
+/* Body */
+.stash-body {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.stash-body--form {
+  padding: 1rem 1.1rem;
+  gap: 1rem;
+  max-height: none;
+}
+
+/* Empty state */
+.stash-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 2.5rem 1rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.stash-empty .codicon {
+  font-size: 2.2rem;
+  opacity: 0.5;
+}
+
+.stash-empty span {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.stash-empty p {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+/* Stash list */
+.stash-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.stash-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1.1rem;
+  border-bottom: 1px solid var(--panel-border);
+  transition: background 80ms ease;
+}
+
+.stash-entry:last-child {
+  border-bottom: none;
+}
+
+.stash-entry:hover {
+  background: color-mix(in srgb, var(--panel) 60%, var(--bg) 40%);
+}
+
+.stash-entry__left {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 15%, transparent 85%);
+  color: var(--accent);
+}
+
+.stash-entry__icon {
+  font-size: 0.9rem;
+}
+
+.stash-entry__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.stash-entry__top {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.stash-entry__ref {
+  font-size: 0.72rem;
+  font-family: var(--vscode-editor-font-family, monospace);
+  background: color-mix(in srgb, var(--panel) 40%, var(--bg) 60%);
+  border: 1px solid var(--panel-border);
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+  color: var(--muted);
+}
+
+.stash-entry__message {
+  font-size: 0.88rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.stash-entry__date {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.stash-entry__date .codicon {
+  font-size: 0.7rem;
+}
+
+.stash-entry__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+.stash-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  transition: color 80ms, background 80ms, border-color 80ms;
+}
+
+.stash-action-btn:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel) 60%, var(--text) 16%);
+  border-color: var(--accent);
+}
+
+.stash-action-btn--danger {
+  color: var(--danger);
+  border-color: transparent;
+}
+
+.stash-action-btn--danger:hover {
+  color: #fff;
+  background: var(--danger);
+  border-color: transparent;
+}
+
+/* Changes summary bar */
+.stash-changes-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--panel) 50%, var(--bg) 50%);
+  border: 1px solid var(--panel-border);
+}
+
+.stash-changes-summary__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.stash-changes-summary__item--staged {
+  color: var(--success);
+}
+
+.stash-changes-summary__item--unstaged {
+  color: var(--warning);
+}
+
+.stash-changes-summary__item--conflict {
+  color: var(--danger);
+}
+
+/* No changes state */
+.stash-no-changes {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--success) 10%, transparent 90%);
+  border: 1px solid color-mix(in srgb, var(--success) 30%, transparent 70%);
+  color: var(--success);
+  font-size: 0.85rem;
+}
+
+/* Form */
+.stash-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.stash-form__label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.1rem;
+}
+
+.stash-form__hint {
+  font-size: 0.72rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: color-mix(in srgb, var(--muted) 70%, transparent 30%);
+}
+
+.stash-form__input {
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.stash-form__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text);
+}
+
+.stash-form__checkbox input {
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* Footer */
+.stash-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--panel-border);
+  margin-top: 0.25rem;
+}
+
+.stash-footer__cancel {
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  color: var(--muted);
+}
+
+.stash-footer__cancel:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.stash-footer__submit {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--vscode-button-background, var(--accent));
+  color: var(--vscode-button-foreground, #fff);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.stash-footer__submit:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground, color-mix(in srgb, var(--accent) 85%, white 15%));
+  border-color: transparent;
+}
