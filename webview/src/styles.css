@@ -281,22 +281,21 @@ select:focus {
 }
 
 .graph__canvas {
+  position: relative;
   min-width: 48rem;
-  display: grid;
-  grid-template-columns: var(--graph-width) minmax(24rem, 1fr);
-  gap: 0.5rem;
 }
 
 .graph__svg {
-  position: sticky;
-  left: 0;
+  position: absolute;
   top: 0;
+  left: 0;
   background: var(--bg);
   border-right: 1px solid var(--panel-border);
 }
 
 .graph__rows {
   display: grid;
+  padding-left: var(--graph-width);
 }
 
 .graph-row {

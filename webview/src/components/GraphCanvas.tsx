@@ -100,7 +100,7 @@ function getLaneColor(lane: number): string {
 }
 
 export function GraphCanvas({ snapshot, selectedCommitHash, onSelectCommit, onOpenContextMenu, onLoadMore, onOpenSettings, onOpenPR, onOpenDeleteBranches }: GraphCanvasProps) {
-    const rowHeight = 40;
+    const rowHeight = 46;
     const laneGap = 20;
     const graphWidth = Math.max(110, 52 + (snapshot.maxLane + 1) * laneGap);
     const totalHeight = snapshot.rows.length * rowHeight;
