@@ -22,7 +22,7 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
     private readonly extensionUri: vscode.Uri,
     private readonly repository: GitRepository,
     private readonly output: vscode.OutputChannel
-  ) {}
+  ) { }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -116,7 +116,7 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    await this.withBusy('Atualizando grafo Git...', async () => {
+    await this.withBusy('Refreshing Git graph...', async () => {
       const snapshot = await this.repository.getGraph(this.filters);
       await this.postMessage({ type: 'graphSnapshot', payload: snapshot });
 
@@ -143,70 +143,70 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
         return;
       case 'selectCommit':
         this.selectedCommitHash = message.payload.commitHash;
-        await this.withBusy('Carregando detalhes do commit...', async () => {
+        {
           const detail = await this.repository.getCommitDetail(message.payload.repoRoot, message.payload.commitHash);
           await this.postMessage({ type: 'commitDetail', payload: detail });
-        });
+        }
         return;
       case 'openDiff':
         await this.repository.openDiff(message.payload);
         return;
       case 'fetch':
-        await this.executeRepositoryAction('Executando fetch...', async () => {
+        await this.executeRepositoryAction('Fetching...', async () => {
           await this.repository.fetch(message.payload.repoRoot);
         });
         return;
       case 'pull':
-        await this.executeRepositoryAction('Executando pull...', async () => {
+        await this.executeRepositoryAction('Pulling...', async () => {
           await this.repository.pull(message.payload.repoRoot);
         });
         return;
       case 'push':
-        await this.executeRepositoryAction('Executando push...', async () => {
+        await this.executeRepositoryAction('Pushing...', async () => {
           await this.repository.push(message.payload.repoRoot);
         });
         return;
       case 'createBranchPrompt': {
         const name = await vscode.window.showInputBox({
           title: 'Create Branch',
-          prompt: 'Nome da nova branch',
+          prompt: 'New branch name',
           ignoreFocusOut: true,
-          validateInput: (value) => (value.trim() ? undefined : 'Informe um nome para a branch.')
+          validateInput: (value) => (value.trim() ? undefined : 'Please enter a branch name.')
         });
 
         if (!name) {
           return;
         }
 
-        await this.executeRepositoryAction('Criando branch...', async () => {
+        await this.executeRepositoryAction('Creating branch...', async () => {
           await this.repository.createBranch(message.payload.repoRoot, name.trim(), message.payload.fromRef);
         });
         return;
       }
       case 'deleteBranch': {
         const confirmed = await vscode.window.showWarningMessage(
-          `Excluir a branch ${message.payload.branchName}?`,
+          `Delete branch ${message.payload.branchName}?`,
           { modal: true },
-          'Excluir'
+          'Delete'
         );
 
-        if (confirmed !== 'Excluir') {
+        if (confirmed !== 'Delete') {
           return;
         }
 
-        await this.executeRepositoryAction('Excluindo branch...', async () => {
+        await this.executeRepositoryAction('Deleting branch...', async () => {
           await this.repository.deleteBranch(message.payload.repoRoot, message.payload.branchName);
         });
         return;
       }
       case 'checkoutBranch':
-        await this.executeRepositoryAction('Fazendo checkout...', async () => {
+        await this.executeRepositoryAction('Checking out...', async () => {
           await this.repository.checkout(message.payload.repoRoot, message.payload.branchName);
         });
         return;
       case 'mergeBranchPrompt': {
         const confirmed = await vscode.window.showWarningMessage(
-          `Fazer merge de ${message.payload.branchName} na branch atual?`,
+          `Merge ${message.payload.branchName} into the current branch?`,
           { modal: true },
           'Merge'
         );
@@ -215,14 +215,14 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
           return;
         }
 
-        await this.executeRepositoryAction('Executando merge...', async () => {
+        await this.executeRepositoryAction('Merging...', async () => {
           await this.repository.merge(message.payload.repoRoot, message.payload.branchName);
         });
         return;
       }
       case 'checkoutCommit': {
         const confirmed = await vscode.window.showWarningMessage(
-          `Checkout em detached HEAD para ${message.payload.commitHash.slice(0, 8)}?`,
+          `Checkout detached HEAD at ${message.payload.commitHash.slice(0, 8)}?`,
           { modal: true },
           'Checkout'
         );
@@ -231,19 +231,19 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
           return;
         }
 
-        await this.executeRepositoryAction('Executando checkout do commit...', async () => {
+        await this.executeRepositoryAction('Checking out commit...', async () => {
           await this.repository.checkout(message.payload.repoRoot, message.payload.commitHash);
         });
         return;
       }
       case 'cherryPick':
-        await this.executeRepositoryAction('Executando cherry-pick...', async () => {
+        await this.executeRepositoryAction('Cherry-picking...', async () => {
           await this.repository.cherryPick(message.payload.repoRoot, message.payload.commitHash);
         });
         return;
       case 'revertCommit': {
         const confirmed = await vscode.window.showWarningMessage(
-          `Reverter o commit ${message.payload.commitHash.slice(0, 8)}?`,
+          `Revert commit ${message.payload.commitHash.slice(0, 8)}?`,
           { modal: true },
           'Revert'
         );
@@ -252,14 +252,14 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
           return;
         }
 
-        await this.executeRepositoryAction('Revertendo commit...', async () => {
+        await this.executeRepositoryAction('Reverting commit...', async () => {
           await this.repository.revert(message.payload.repoRoot, message.payload.commitHash);
         });
         return;
       }
       case 'dropCommit': {
         const confirmed = await vscode.window.showWarningMessage(
-          `Remover (drop) o commit ${message.payload.commitHash.slice(0, 8)}? Esta ação reescreve o histórico.`,
+          `Drop commit ${message.payload.commitHash.slice(0, 8)}? This rewrites history.`,
           { modal: true },
           'Drop'
         );
@@ -268,14 +268,14 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
           return;
         }
 
-        await this.executeRepositoryAction('Removendo commit...', async () => {
+        await this.executeRepositoryAction('Dropping commit...', async () => {
           await this.repository.dropCommit(message.payload.repoRoot, message.payload.commitHash);
         });
         return;
       }
       case 'mergeCommit': {
         const confirmed = await vscode.window.showWarningMessage(
-          `Fazer merge do commit ${message.payload.commitHash.slice(0, 8)} na branch atual?`,
+          `Merge commit ${message.payload.commitHash.slice(0, 8)} into the current branch?`,
           { modal: true },
           'Merge'
         );
@@ -284,14 +284,14 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
           return;
         }
 
-        await this.executeRepositoryAction('Executando merge...', async () => {
+        await this.executeRepositoryAction('Merging...', async () => {
           await this.repository.merge(message.payload.repoRoot, message.payload.commitHash);
         });
         return;
       }
       case 'rebaseOnCommit': {
         const confirmed = await vscode.window.showWarningMessage(
-          `Fazer rebase da branch atual sobre o commit ${message.payload.commitHash.slice(0, 8)}?`,
+          `Rebase current branch onto commit ${message.payload.commitHash.slice(0, 8)}?`,
           { modal: true },
           'Rebase'
         );
@@ -300,7 +300,7 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
           return;
         }
 
-        await this.executeRepositoryAction('Executando rebase...', async () => {
+        await this.executeRepositoryAction('Rebasing...', async () => {
           await this.repository.rebase(message.payload.repoRoot, message.payload.commitHash);
         });
         return;
@@ -308,11 +308,11 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
       case 'resetToCommit': {
         const mode = await vscode.window.showQuickPick(
           [
-            { label: 'Soft', description: 'Mantém alterações no staging', value: 'soft' as const },
-            { label: 'Mixed', description: 'Mantém alterações no working tree', value: 'mixed' as const },
-            { label: 'Hard', description: 'Descarta todas as alterações', value: 'hard' as const }
+            { label: 'Soft', description: 'Keep changes staged', value: 'soft' as const },
+            { label: 'Mixed', description: 'Keep changes in working tree', value: 'mixed' as const },
+            { label: 'Hard', description: 'Discard all changes', value: 'hard' as const }
           ],
-          { title: `Reset para ${message.payload.commitHash.slice(0, 8)}`, placeHolder: 'Selecione o modo de reset' }
+          { title: `Reset to ${message.payload.commitHash.slice(0, 8)}`, placeHolder: 'Select reset mode' }
         );
 
         if (!mode) {
@@ -320,7 +320,7 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
         }
 
         const confirmed = await vscode.window.showWarningMessage(
-          `Reset (${mode.label}) da branch atual para ${message.payload.commitHash.slice(0, 8)}?`,
+          `Reset (${mode.label}) current branch to ${message.payload.commitHash.slice(0, 8)}?`,
           { modal: true },
           'Reset'
         );
@@ -329,23 +329,23 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
           return;
         }
 
-        await this.executeRepositoryAction('Executando reset...', async () => {
+        await this.executeRepositoryAction('Resetting...', async () => {
           await this.repository.resetTo(message.payload.repoRoot, message.payload.commitHash, mode.value);
         });
         return;
       }
       case 'copyHash':
         await vscode.env.clipboard.writeText(message.payload.hash);
-        await this.postNotification('info', 'Hash copiado para a área de transferência.');
+        await this.postNotification('info', 'Hash copied to clipboard.');
         return;
       case 'copySubject':
         await vscode.env.clipboard.writeText(message.payload.subject);
-        await this.postNotification('info', 'Assunto copiado para a área de transferência.');
+        await this.postNotification('info', 'Subject copied to clipboard.');
         return;
       case 'openInTerminal': {
         const hash = message.payload.commitHash;
         if (!/^[0-9a-f]{4,40}$/i.test(hash)) {
-          await this.postNotification('error', 'Hash de commit inválido.');
+          await this.postNotification('error', 'Invalid commit hash.');
           return;
         }
         const terminal = vscode.window.createTerminal({ cwd: message.payload.repoRoot, name: 'Git Graphor' });
@@ -354,28 +354,28 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
         return;
       }
       case 'stageFile':
-        await this.executeRepositoryAction('Adicionando arquivo ao stage...', async () => {
+        await this.executeRepositoryAction('Staging file...', async () => {
           await this.repository.stageFile(message.payload.repoRoot, message.payload.file.path);
         });
         return;
       case 'unstageFile':
-        await this.executeRepositoryAction('Removendo arquivo do stage...', async () => {
+        await this.executeRepositoryAction('Unstaging file...', async () => {
           await this.repository.unstageFile(message.payload.repoRoot, message.payload.file.path);
         });
         return;
       case 'discardFile': {
         const confirmed = await vscode.window.showWarningMessage(
-          `Descartar alterações em ${message.payload.file.path}?`,
+          `Discard changes in ${message.payload.file.path}?`,
           { modal: true },
-          'Descartar'
+          'Discard'
         );
 
-        if (confirmed !== 'Descartar') {
+        if (confirmed !== 'Discard') {
           return;
         }
 
         const tracked = message.payload.file.indexStatus !== '?' && message.payload.file.workTreeStatus !== '?';
-        await this.executeRepositoryAction('Descartando alterações...', async () => {
+        await this.executeRepositoryAction('Discarding changes...', async () => {
           await this.repository.discardFile(message.payload.repoRoot, message.payload.file.path, tracked);
         });
         return;
@@ -383,34 +383,34 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
       case 'commitChangesPrompt': {
         const messageText = await vscode.window.showInputBox({
           title: 'Commit Changes',
-          prompt: 'Mensagem do commit',
+          prompt: 'Commit message',
           ignoreFocusOut: true,
-          validateInput: (value) => (value.trim() ? undefined : 'Informe uma mensagem de commit.')
+          validateInput: (value) => (value.trim() ? undefined : 'Please enter a commit message.')
         });
 
         if (!messageText) {
           return;
         }
 
-        await this.executeRepositoryAction('Criando commit...', async () => {
+        await this.executeRepositoryAction('Committing...', async () => {
           await this.repository.commit(message.payload.repoRoot, messageText.trim());
         });
         return;
       }
       case 'setGitUserName': {
-        await this.executeRepositoryAction('Salvando user.name...', async () => {
+        await this.executeRepositoryAction('Saving user.name...', async () => {
           await this.repository.setGitUserName(message.payload.repoRoot, message.payload.name);
         });
         return;
       }
       case 'setGitUserEmail': {
-        await this.executeRepositoryAction('Salvando user.email...', async () => {
+        await this.executeRepositoryAction('Saving user.email...', async () => {
           await this.repository.setGitUserEmail(message.payload.repoRoot, message.payload.email);
         });
         return;
       }
       case 'setRemoteUrl': {
-        await this.executeRepositoryAction('Salvando URL do remote...', async () => {
+        await this.executeRepositoryAction('Saving remote URL...', async () => {
           await this.repository.setRemoteUrl(message.payload.repoRoot, message.payload.remoteName, message.payload.url);
         });
         return;
@@ -430,7 +430,7 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
           await vscode.env.openExternal(vscode.Uri.parse(prUrl));
         } else {
           await vscode.window.showWarningMessage(
-            `Não foi possível detectar a URL do PR. Remote: ${remoteUrl || '(none)'}`
+            `Could not detect PR URL. Remote: ${remoteUrl || '(none)'}`
           );
         }
         return;
@@ -491,7 +491,7 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
     await this.withBusy(label, async () => {
       await action();
       await this.refresh();
-      await this.postNotification('info', 'Operação concluída com sucesso.');
+      await this.postNotification('info', 'Operation completed successfully.');
     }).catch(async (error) => {
       const message = error instanceof Error ? error.message : String(error);
       this.output.appendLine(`[ui-error] ${message}`);
