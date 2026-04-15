@@ -116,26 +116,7 @@ function FolderGroup({ labelParts, node, depth, detail, onOpenDiff }: FolderGrou
 
 export function CommitDetails({ detail, onOpenDiff, onClose }: CommitDetailsProps) {
     if (!detail) {
-        return (
-            <section className="details panel">
-                <header className="panel__header">
-                    <div>
-                        <span className="panel__eyebrow">Commit Details</span>
-                        <h2>Select a commit</h2>
-                    </div>
-                    <button
-                        type="button"
-                        className="panel__settings-btn"
-                        onClick={onClose}
-                        title="Close Commit Details"
-                        aria-label="Close Commit Details"
-                    >
-                        <i className="codicon codicon-close" aria-hidden="true" />
-                    </button>
-                </header>
-                <div className="empty-state">Choose a commit in the graph to inspect files, stats and native diffs.</div>
-            </section>
-        );
+        return null;
     }
 
     return (

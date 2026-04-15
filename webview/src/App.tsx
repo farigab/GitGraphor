@@ -128,16 +128,19 @@ export function App() {
             setSelectedCommit(null);
             setSelectedCommitHash(undefined);
             requestedCommitHashRef.current = undefined;
-        } else {
-            setIsUncommittedSelected(false);
-            requestedCommitHashRef.current = commit.hash;
-            setSelectedCommitHash(commit.hash);
-            setIsCommitDetailsOpen(true);
-            vscode.postMessage({
-                type: 'selectCommit',
-                payload: { repoRoot: snapshot.repoRoot, commitHash: commit.hash }
-            });
+            return;
         }
+
+        setIsUncommittedSelected(false);
+        requestedCommitHashRef.current = commit.hash;
+        setSelectedCommitHash(commit.hash);
+        setIsCommitDetailsOpen(true);
+        vscode.postMessage({
+            type: 'selectCommit',
+            payload: { repoRoot: snapshot.repoRoot, commitHash: commit.hash }
+        });
+        
+        return;
     };
 
     const handleOpenDiff = (file: CommitFileChange, detail: CommitDetail): void => {
