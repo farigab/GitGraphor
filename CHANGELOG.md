@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+
+- Fixed "Show in RepoFlow" from Git blame not highlighting the commit in the history when the panel was opened for the first time.
+- Fixed "Show in RepoFlow" not scrolling to old commits that were outside the initially loaded 200-commit window — the graph now automatically expands until the target commit is found.
+
 ## Initial Version
 
 - Interactive Git history graph with commit details and native VS Code diff integration.
