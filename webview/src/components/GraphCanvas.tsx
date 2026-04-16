@@ -405,7 +405,7 @@ export function GraphCanvas({ snapshot, selectedCommitHash, selectedUncommitted,
 
             <div className="graph__viewport" ref={viewportRef}>
                 <div className="graph__canvas" style={{ '--graph-width': `${graphWidth}px` } as CSSProperties}>
-                    <svg className="graph__svg" width={graphWidth} height={totalHeight} viewBox={`0 0 ${graphWidth} ${totalHeight}`} role="img" aria-label="Git graph canvas">
+                    <svg className="graph__svg" width={graphWidth} height={totalHeight} viewBox={`0 0 ${graphWidth} ${totalHeight}`} preserveAspectRatio="none" role="img" aria-label="Git graph canvas">
                         <defs>
                             <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
                                 <path d="M 24 0 L 0 0 0 24" fill="none" stroke="rgba(148, 163, 184, 0.12)" strokeWidth="1" />
