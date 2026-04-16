@@ -113,7 +113,10 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
     }, undefined, this.panelDisposables);
 
     this.currentPanel = panel;
-    void this.refresh();
+    // Do NOT call refresh() here — the webview JS hasn't loaded yet so any
+    // postMessage would be silently dropped. The 'ready' event sent by the
+    // webview after its JS initialises will trigger the first refresh, at
+    // which point pendingRevealHash / selectedCommitHash are still set.
   }
 
   /**
@@ -134,7 +137,20 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
     }
 
     await this.withBusy('Refreshing Git graph...', async () => {
-      const snapshot = await this.repository.getGraph(this.filters);
+      let snapshot = await this.repository.getGraph(this.filters);
+
+      // If a commit needs to be revealed but isn't within the loaded page,
+      // keep expanding the limit until the commit is found or history is exhausted.
+      if (this.pendingRevealHash) {
+        while (
+          snapshot.hasMore &&
+          !snapshot.rows.some(r => r.commit.hash === this.pendingRevealHash)
+        ) {
+          this.filters = { ...this.filters, limit: this.filters.limit + 200 };
+          snapshot = await this.repository.getGraph(this.filters);
+        }
+      }
+
       await this.postMessage({ type: 'graphSnapshot', payload: snapshot });
 
       if (this.selectedCommitHash) {
