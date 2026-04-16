@@ -284,7 +284,7 @@ export class GitBlameController implements vscode.Disposable {
     const stats = this.statsCache.get(entry.commitHash);
 
     const statsLine = stats
-      ? `$(diff-added) **+${stats.insertions}** \u2009$(diff-removed) **-${stats.deletions}** \u00a0\u2022\u00a0 ${stats.filesChanged} file${stats.filesChanged !== 1 ? 's' : ''} changed`
+      ? `\`\`\`diff\n+${stats.insertions} insertion${stats.insertions !== 1 ? 's' : ''}\n-${stats.deletions} deletion${stats.deletions !== 1 ? 's' : ''}\n ${stats.filesChanged} file${stats.filesChanged !== 1 ? 's' : ''} changed\n\`\`\``
       : '$(loading~spin) Loading stats\u2026';
 
     const ghUrl = buildGitHubCommitUrl(config.remotes, entry.commitHash);
