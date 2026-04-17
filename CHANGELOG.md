@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.5
+
+- **Branch ahead/behind indicators**: the branch tree view now shows `↑N` (commits to push) and `↓N` (commits to pull) as secondary text beside each branch that has an upstream. Both arrows appear together when diverged (e.g. `↑2 ↓1`). Falls back to `→ upstream` when in sync.
+
 ## 1.1.4
 
 - adjust commit detail message handling for smoother UI updates
