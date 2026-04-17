@@ -316,7 +316,7 @@ export class GitCliRepository implements GitRepository {
   }
 
   public async createBranch(repoRoot: string, name: string, fromRef?: string): Promise<void> {
-    const args = ['branch', name];
+    const args = ['checkout', '-b', name];
     if (fromRef) {
       args.push(fromRef);
     }
