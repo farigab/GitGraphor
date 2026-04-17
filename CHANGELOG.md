@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.8
+
+- **Local & remote source branches**: the source branch picker now lists both local and remote (origin) branches, grouped by separator, so you can create a branch from any ref.
+
 ## 1.0.7
 
 - **Create Branch button in SCM title bar**: new branch creation button (`+`) now appears next to the "Open Graph" button in Source Control, with visibility synced to the native Git provider.
