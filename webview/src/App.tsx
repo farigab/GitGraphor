@@ -1,4 +1,4 @@
-import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { CommitDetail, CommitFileChange, CommitSummary, DiffRequest, GraphFilters, GraphSnapshot, StashEntry, WorkingTreeFile, WorktreeEntry } from '../../src/core/models/GitModels';
 import type { ExtensionToWebviewMessage } from '../../src/shared/protocol';
 import { CommitDetails } from './components/CommitDetails';
@@ -145,7 +145,7 @@ export function App() {
     const { leftPercent, containerRef, onDividerMouseDown } = useResizableSplit(62);
     const showSidebar = isUncommittedSelected || isCommitDetailsOpen;
 
-    const handleSelectCommit = (commit: CommitSummary): void => {
+    const handleSelectCommit = useCallback((commit: CommitSummary): void => {
         if (!snapshot) {
             return;
         }
@@ -166,11 +166,9 @@ export function App() {
             type: 'selectCommit',
             payload: { repoRoot: snapshot.repoRoot, commitHash: commit.hash }
         });
+    }, [snapshot, isCommitDetailsOpen]);
 
-        return;
-    };
-
-    const handleOpenDiff = (file: CommitFileChange, detail: CommitDetail): void => {
+    const handleOpenDiff = useCallback((file: CommitFileChange, detail: CommitDetail): void => {
         if (!snapshot) {
             return;
         }
@@ -184,35 +182,35 @@ export function App() {
         };
 
         vscode.postMessage({ type: 'openDiff', payload: request });
-    };
+    }, [snapshot]);
 
-    const handleSelectUncommitted = (): void => {
+    const handleSelectUncommitted = useCallback((): void => {
         setIsUncommittedSelected(true);
         requestedCommitHashRef.current = undefined;
         setSelectedCommitHash(undefined);
-    };
+    }, []);
 
-    const handleStageFile = (file: WorkingTreeFile): void => {
+    const handleStageFile = useCallback((file: WorkingTreeFile): void => {
         if (!snapshot) return;
         vscode.postMessage({ type: 'stageFile', payload: { repoRoot: snapshot.repoRoot, file } });
-    };
+    }, [snapshot]);
 
-    const handleUnstageFile = (file: WorkingTreeFile): void => {
+    const handleUnstageFile = useCallback((file: WorkingTreeFile): void => {
         if (!snapshot) return;
         vscode.postMessage({ type: 'unstageFile', payload: { repoRoot: snapshot.repoRoot, file } });
-    };
+    }, [snapshot]);
 
-    const handleDiscardFile = (file: WorkingTreeFile): void => {
+    const handleDiscardFile = useCallback((file: WorkingTreeFile): void => {
         if (!snapshot) return;
         vscode.postMessage({ type: 'discardFile', payload: { repoRoot: snapshot.repoRoot, file } });
-    };
+    }, [snapshot]);
 
-    const handleCommit = (): void => {
+    const handleCommit = useCallback((): void => {
         if (!snapshot) return;
         vscode.postMessage({ type: 'commitChangesPrompt', payload: { repoRoot: snapshot.repoRoot } });
-    };
+    }, [snapshot]);
 
-    const handleContextAction = (action: 'checkout' | 'cherryPick' | 'revert' | 'drop' | 'createBranch' | 'merge' | 'rebase' | 'reset' | 'copyHash' | 'copySubject' | 'openTerminal'): void => {
+    const handleContextAction = useCallback((action: 'checkout' | 'cherryPick' | 'revert' | 'drop' | 'createBranch' | 'merge' | 'rebase' | 'reset' | 'copyHash' | 'copySubject' | 'openTerminal'): void => {
         if (!snapshot || !contextMenu) {
             return;
         }
@@ -259,7 +257,46 @@ export function App() {
         }
 
         setContextMenu(null);
-    };
+    }, [snapshot, contextMenu]);
+
+    const handleOpenContextMenu = useCallback((commit: CommitSummary, point: { x: number; y: number }) => {
+        setContextMenu({ commit, ...point });
+    }, []);
+
+    const handleLoadMore = useCallback((limit: number) => {
+        vscode.postMessage({ type: 'loadMore', payload: { limit } });
+    }, []);
+
+    const handleBannerAction = useCallback((action: 'continue' | 'skip' | 'abort' | 'pull' | 'push' | 'fetch') => {
+        if (!snapshot) return;
+        const repoRoot = snapshot.repoRoot;
+        const state = snapshot.localChanges.specialState ?? '';
+        if (action === 'continue') vscode.postMessage({ type: 'continueOperation', payload: { repoRoot, state } });
+        else if (action === 'skip') vscode.postMessage({ type: 'skipOperation', payload: { repoRoot } });
+        else if (action === 'abort') vscode.postMessage({ type: 'abortOperation', payload: { repoRoot, state } });
+        else if (action === 'pull') vscode.postMessage({ type: 'pullRepo', payload: { repoRoot } });
+        else if (action === 'push') vscode.postMessage({ type: 'pushRepo', payload: { repoRoot } });
+        else if (action === 'fetch') vscode.postMessage({ type: 'fetchRepo', payload: { repoRoot } });
+    }, [snapshot]);
+
+    const handleOpenConflictFile = useCallback((filePath: string) => {
+        if (!snapshot) return;
+        vscode.postMessage({ type: 'openFile', payload: { repoRoot: snapshot.repoRoot, filePath } });
+    }, [snapshot]);
+
+    const handleOpenStashModal = useCallback(() => {
+        if (snapshot) {
+            vscode.postMessage({ type: 'listStashes', payload: { repoRoot: snapshot.repoRoot } });
+        }
+        setStashOpen(true);
+    }, [snapshot]);
+
+    const handleOpenWorktreeModal = useCallback(() => {
+        if (snapshot) {
+            vscode.postMessage({ type: 'listWorktrees', payload: { repoRoot: snapshot.repoRoot } });
+        }
+        setWorktreeOpen(true);
+    }, [snapshot]);
 
     if (!snapshot) {
         return (
@@ -289,38 +326,15 @@ export function App() {
                     selectedUncommitted={isUncommittedSelected}
                     onSelectCommit={handleSelectCommit}
                     onSelectUncommitted={handleSelectUncommitted}
-                    onOpenContextMenu={(commit, point) => setContextMenu({ commit, ...point })}
-                    onLoadMore={(limit) => vscode.postMessage({ type: 'loadMore', payload: { limit } })}
+                    onOpenContextMenu={handleOpenContextMenu}
+                    onLoadMore={handleLoadMore}
                     onOpenSettings={() => setSettingsOpen(true)}
                     onOpenPR={() => setPrOpen(true)}
                     onOpenDeleteBranches={() => setDeleteBranchesOpen(true)}
-                    onOpenStashModal={() => {
-                        if (snapshot) {
-                            vscode.postMessage({ type: 'listStashes', payload: { repoRoot: snapshot.repoRoot } });
-                        }
-                        setStashOpen(true);
-                    }}
-                    onOpenWorktreeModal={() => {
-                        if (snapshot) {
-                            vscode.postMessage({ type: 'listWorktrees', payload: { repoRoot: snapshot.repoRoot } });
-                        }
-                        setWorktreeOpen(true);
-                    }}
-                    onBannerAction={(action) => {
-                        if (!snapshot) return;
-                        const repoRoot = snapshot.repoRoot;
-                        const state = snapshot.localChanges.specialState ?? '';
-                        if (action === 'continue') vscode.postMessage({ type: 'continueOperation', payload: { repoRoot, state } });
-                        else if (action === 'skip') vscode.postMessage({ type: 'skipOperation', payload: { repoRoot } });
-                        else if (action === 'abort') vscode.postMessage({ type: 'abortOperation', payload: { repoRoot, state } });
-                        else if (action === 'pull') vscode.postMessage({ type: 'pullRepo', payload: { repoRoot } });
-                        else if (action === 'push') vscode.postMessage({ type: 'pushRepo', payload: { repoRoot } });
-                        else if (action === 'fetch') vscode.postMessage({ type: 'fetchRepo', payload: { repoRoot } });
-                    }}
-                    onOpenConflictFile={(filePath) => {
-                        if (!snapshot) return;
-                        vscode.postMessage({ type: 'openFile', payload: { repoRoot: snapshot.repoRoot, filePath } });
-                    }}
+                    onOpenStashModal={handleOpenStashModal}
+                    onOpenWorktreeModal={handleOpenWorktreeModal}
+                    onBannerAction={handleBannerAction}
+                    onOpenConflictFile={handleOpenConflictFile}
                 />
 
                 {showSidebar ? <div className="resizer" onMouseDown={onDividerMouseDown} /> : null}

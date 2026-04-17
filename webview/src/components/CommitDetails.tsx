@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { CommitDetail, CommitFileChange } from '../../../src/core/models/GitModels';
 
 interface CommitDetailsProps {
@@ -115,7 +116,9 @@ function FolderGroup({ labelParts, node, depth, detail, onOpenDiff }: FolderGrou
 }
 
 export function CommitDetails({ detail, onOpenDiff, onClose }: CommitDetailsProps) {
-    if (!detail) {
+    const tree = useMemo(() => detail ? buildTree(detail.files) : null, [detail]);
+
+    if (!detail || !tree) {
         return null;
     }
 
@@ -164,41 +167,34 @@ export function CommitDetails({ detail, onOpenDiff, onClose }: CommitDetailsProp
             {detail.body ? <pre className="details__body">{detail.body}</pre> : null}
 
             <div className="details__files">
-                {(() => {
-                    const tree = buildTree(detail.files);
+                {tree.files.map((file) => {
+                    const filename = file.path.split('/').at(-1) ?? file.path;
+                    const origFilename = file.originalPath ? (file.originalPath.split('/').at(-1) ?? file.originalPath) : null;
                     return (
-                        <>
-                            {tree.files.map((file) => {
-                                const filename = file.path.split('/').at(-1) ?? file.path;
-                                const origFilename = file.originalPath ? (file.originalPath.split('/').at(-1) ?? file.originalPath) : null;
-                                return (
-                                    <button key={`${detail.hash}-${file.path}`} type="button" className="file-card" onClick={() => onOpenDiff(file, detail)}>
-                                        <i className="codicon codicon-file" aria-hidden="true" />
-                                        <span className={`status-badge status-badge--${file.status.toLowerCase()}`}>{file.status}</span>
-                                        <span className="file-card__path">
-                                            {origFilename ? <span className="file-card__rename">{origFilename} → </span> : null}
-                                            <strong>{filename}</strong>
-                                        </span>
-                                        <span className="file-card__stats">
-                                            <span className="file-card__stats--add">+{file.additions}</span>
-                                            <span className="file-card__stats--del">−{file.deletions}</span>
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                            {[...tree.children.entries()].map(([name, child]) => (
-                                <FolderGroup
-                                    key={name}
-                                    labelParts={[name]}
-                                    node={child}
-                                    depth={0}
-                                    detail={detail}
-                                    onOpenDiff={onOpenDiff}
-                                />
-                            ))}
-                        </>
+                        <button key={`${detail.hash}-${file.path}`} type="button" className="file-card" onClick={() => onOpenDiff(file, detail)}>
+                            <i className="codicon codicon-file" aria-hidden="true" />
+                            <span className={`status-badge status-badge--${file.status.toLowerCase()}`}>{file.status}</span>
+                            <span className="file-card__path">
+                                {origFilename ? <span className="file-card__rename">{origFilename} → </span> : null}
+                                <strong>{filename}</strong>
+                            </span>
+                            <span className="file-card__stats">
+                                <span className="file-card__stats--add">+{file.additions}</span>
+                                <span className="file-card__stats--del">−{file.deletions}</span>
+                            </span>
+                        </button>
                     );
-                })()}
+                })}
+                {[...tree.children.entries()].map(([name, child]) => (
+                    <FolderGroup
+                        key={name}
+                        labelParts={[name]}
+                        node={child}
+                        depth={0}
+                        detail={detail}
+                        onOpenDiff={onOpenDiff}
+                    />
+                ))}
             </div>
         </section>
     );

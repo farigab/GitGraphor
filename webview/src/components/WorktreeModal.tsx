@@ -48,12 +48,13 @@ export function WorktreeModal({ repoRoot, entries, branches, busy, worktreeError
 
     // Set initial branch selection
     useEffect(() => {
-        if (localBranches.length > 0 && !selectedBranch) {
-            const first = localBranches[0].shortName;
+        const local = branches.filter((b) => !b.remote);
+        if (local.length > 0 && !selectedBranch) {
+            const first = local[0].shortName;
             setSelectedBranch(first);
             if (!worktreePath) setWorktreePath(buildDefaultPath(repoRoot, first));
         }
-    }, [branches]);
+    }, [branches, selectedBranch, worktreePath, repoRoot]);
 
     // Update path suggestion when the effective branch changes (not for detached mode)
     const effectiveBranch = addMode === 'existing' ? selectedBranch : addMode === 'new' ? newBranchName.trim() : '';

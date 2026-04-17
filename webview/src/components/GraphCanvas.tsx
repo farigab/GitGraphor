@@ -353,7 +353,7 @@ export function GraphCanvas({ snapshot, selectedCommitHash, selectedUncommitted,
         if (!viewport) {
             return;
         }
-        viewport.addEventListener('scroll', handleScroll);
+        viewport.addEventListener('scroll', handleScroll, { passive: true });
         return () => viewport.removeEventListener('scroll', handleScroll);
     }, [handleScroll]);
 
@@ -387,7 +387,7 @@ export function GraphCanvas({ snapshot, selectedCommitHash, selectedUncommitted,
         return map;
     }, [matchedRows]);
 
-    const edges = snapshot.rows.flatMap((row) => {
+    const edges = useMemo(() => snapshot.rows.flatMap((row) => {
         return row.connections.map((connection) => {
             const parentRow = rowByHash.get(connection.parentHash);
             if (parentRow === undefined) {
@@ -417,14 +417,14 @@ export function GraphCanvas({ snapshot, selectedCommitHash, selectedUncommitted,
                 />
             );
         });
-    });
+    }).filter(Boolean), [snapshot.rows, rowByHash]);
 
     const worktreeHeadSet = useMemo(
         () => new Set(snapshot.worktreeHeads ?? []),
         [snapshot.worktreeHeads]
     );
 
-    const nodes = snapshot.rows.map((row) => {
+    const nodes = useMemo(() => snapshot.rows.map((row) => {
         const x = 32 + row.lane * laneGap;
         const y = row.row * rowHeight + rowHeight / 2;
         const isSelected = row.commit.hash === selectedCommitHash;
@@ -452,7 +452,7 @@ export function GraphCanvas({ snapshot, selectedCommitHash, selectedUncommitted,
                 ) : null}
             </g>
         );
-    });
+    }), [snapshot.rows, selectedCommitHash, worktreeHeadSet, onSelectCommit, handleNodeMouseEnter, handleNodeMouseLeave]);
 
     const handleContextMenu = (event: MouseEvent<HTMLButtonElement>, commit: CommitSummary): void => {
         event.preventDefault();

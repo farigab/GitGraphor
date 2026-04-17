@@ -643,8 +643,9 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
         });
         return;
       case 'openFile': {
+        const nodePath = await import('node:path');
         const fullPath = vscode.Uri.file(
-          require('node:path').join(message.payload.repoRoot, message.payload.filePath)
+          nodePath.join(message.payload.repoRoot, message.payload.filePath)
         );
         const doc = await vscode.workspace.openTextDocument(fullPath);
         await vscode.window.showTextDocument(doc, { preserveFocus: false, preview: false });
