@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0
+
+- UI enhancements
+
 ## 1.0.9
 
 - **Repo status banner**: a persistent strip below the graph header always shows the current branch, upstream divergence (ahead/behind) and any in-progress special state (MERGING, REBASING, CHERRY-PICKING, REVERTING, BISECTING, detached HEAD).
