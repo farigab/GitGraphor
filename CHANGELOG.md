@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.4
+
+- adjust commit detail message handling for smoother UI updates
+
 ## 1.1.3
 
 - **feat: Delete remote branch support**: added `deleteRemoteBranch` method to the `GitRepository` interface and implemented it in `GitCliRepository`, enabling remote branch deletion directly from the branch tree view.
