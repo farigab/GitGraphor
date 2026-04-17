@@ -13,6 +13,7 @@ import type {
   GraphFilters,
   GraphSnapshot,
   RepoGitConfig,
+  RepoSpecialState,
   StashEntry,
   WorkingTreeStatus,
   WorktreeEntry
@@ -226,8 +227,49 @@ export class GitCliRepository implements GitRepository {
   }
 
   public async getLocalChanges(repoRoot: string): Promise<WorkingTreeStatus> {
-    const raw = await this.runGit(repoRoot, ['status', '--porcelain=2', '--branch', '--find-renames']);
-    return parseWorkingTreeStatus(raw);
+    const [raw, rawGitDir] = await Promise.all([
+      this.runGit(repoRoot, ['status', '--porcelain=2', '--branch', '--find-renames']),
+      this.runGit(repoRoot, ['rev-parse', '--git-dir'])
+    ]);
+
+    const status = parseWorkingTreeStatus(raw);
+
+    const gitDir = rawGitDir.trim();
+    const resolvedGitDir = path.isAbsolute(gitDir) ? gitDir : path.join(repoRoot, gitDir);
+
+    const exists = (p: string): Promise<boolean> =>
+      fs.access(p).then(() => true, () => false);
+
+    const [isMerging, isRebaseMerge, isRebaseApply, isCherryPicking, isReverting, isBisecting, fetchHeadStat] =
+      await Promise.all([
+        exists(path.join(resolvedGitDir, 'MERGE_HEAD')),
+        exists(path.join(resolvedGitDir, 'rebase-merge')),
+        exists(path.join(resolvedGitDir, 'rebase-apply')),
+        exists(path.join(resolvedGitDir, 'CHERRY_PICK_HEAD')),
+        exists(path.join(resolvedGitDir, 'REVERT_HEAD')),
+        exists(path.join(resolvedGitDir, 'BISECT_LOG')),
+        fs.stat(path.join(resolvedGitDir, 'FETCH_HEAD')).catch(() => null)
+      ]);
+
+    if (isMerging) {
+      status.specialState = 'merging';
+    } else if (isRebaseMerge || isRebaseApply) {
+      status.specialState = 'rebasing';
+    } else if (isCherryPicking) {
+      status.specialState = 'cherry-picking';
+    } else if (isReverting) {
+      status.specialState = 'reverting';
+    } else if (isBisecting) {
+      status.specialState = 'bisecting';
+    } else if (status.currentBranch === '(detached)') {
+      status.specialState = 'detached';
+    }
+
+    if (fetchHeadStat) {
+      status.lastFetchAt = fetchHeadStat.mtime.toISOString();
+    }
+
+    return status;
   }
 
   public async readBlobContent(repoRoot: string, ref: string, targetPath: string): Promise<string> {
@@ -501,6 +543,58 @@ export class GitCliRepository implements GitRepository {
     await this.runGit(repoRoot, ['worktree', 'add', '--detach', worktreePath, commitHash]);
     this.graphCache.clear();
   }
+
+  public async continueOperation(repoRoot: string, state: RepoSpecialState): Promise<void> {
+    switch (state) {
+      case 'merging':
+        await this.runGit(repoRoot, ['merge', '--continue', '--no-edit']);
+        break;
+      case 'rebasing':
+        await this.runGit(repoRoot, ['rebase', '--continue']);
+        break;
+      case 'cherry-picking':
+        await this.runGit(repoRoot, ['cherry-pick', '--continue', '--no-edit']);
+        break;
+      case 'reverting':
+        await this.runGit(repoRoot, ['revert', '--continue', '--no-edit']);
+        break;
+      default:
+        break;
+    }
+    this.graphCache.clear();
+  }
+
+  public async abortOperation(repoRoot: string, state: RepoSpecialState): Promise<void> {
+    switch (state) {
+      case 'merging':
+        await this.runGit(repoRoot, ['merge', '--abort']);
+        break;
+      case 'rebasing':
+        await this.runGit(repoRoot, ['rebase', '--abort']);
+        break;
+      case 'cherry-picking':
+        await this.runGit(repoRoot, ['cherry-pick', '--abort']);
+        break;
+      case 'reverting':
+        await this.runGit(repoRoot, ['revert', '--abort']);
+        break;
+      case 'bisecting':
+        await this.runGit(repoRoot, ['bisect', 'reset']);
+        break;
+      default:
+        break;
+    }
+    this.graphCache.clear();
+  }
+
+  public async skipRebaseOperation(repoRoot: string): Promise<void> {
+    await this.runGit(repoRoot, ['rebase', '--skip']);
+    this.graphCache.clear();
+  }
+
+  // openFile is handled entirely on the extension host side via vscode.workspace.openTextDocument.
+  // This stub satisfies the interface; actual implementation is in GitGraphViewProvider.
+  public async openFile(_repoRoot: string, _filePath: string): Promise<void> { }
 
   private hasDirtyChanges(localChanges: WorkingTreeStatus): boolean {
     return localChanges.staged.length + localChanges.unstaged.length + localChanges.conflicted.length > 0;

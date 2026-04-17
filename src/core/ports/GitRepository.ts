@@ -7,6 +7,7 @@ import type {
   GraphFilters,
   GraphSnapshot,
   RepoGitConfig,
+  RepoSpecialState,
   StashEntry,
   WorkingTreeStatus,
   WorktreeEntry
@@ -48,6 +49,10 @@ export interface GitRepository {
   getBlame(repoRoot: string, relativeFilePath: string): Promise<BlameEntry[]>;
   getCommitStats(repoRoot: string, commitHash: string): Promise<CommitStats>;
   resolveHeadHash(repoRoot: string): Promise<string>;
+  continueOperation(repoRoot: string, state: RepoSpecialState): Promise<void>;
+  abortOperation(repoRoot: string, state: RepoSpecialState): Promise<void>;
+  skipRebaseOperation(repoRoot: string): Promise<void>;
+  openFile(repoRoot: string, filePath: string): Promise<void>;
   listWorktrees(repoRoot: string): Promise<WorktreeEntry[]>;
   addWorktree(repoRoot: string, worktreePath: string, branch: string, createNew: boolean): Promise<void>;
   addWorktreeAtCommit(repoRoot: string, worktreePath: string, commitHash: string): Promise<void>;

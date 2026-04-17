@@ -306,6 +306,21 @@ export function App() {
                         }
                         setWorktreeOpen(true);
                     }}
+                    onBannerAction={(action) => {
+                        if (!snapshot) return;
+                        const repoRoot = snapshot.repoRoot;
+                        const state = snapshot.localChanges.specialState ?? '';
+                        if (action === 'continue') vscode.postMessage({ type: 'continueOperation', payload: { repoRoot, state } });
+                        else if (action === 'skip') vscode.postMessage({ type: 'skipOperation', payload: { repoRoot } });
+                        else if (action === 'abort') vscode.postMessage({ type: 'abortOperation', payload: { repoRoot, state } });
+                        else if (action === 'pull') vscode.postMessage({ type: 'pullRepo', payload: { repoRoot } });
+                        else if (action === 'push') vscode.postMessage({ type: 'pushRepo', payload: { repoRoot } });
+                        else if (action === 'fetch') vscode.postMessage({ type: 'fetchRepo', payload: { repoRoot } });
+                    }}
+                    onOpenConflictFile={(filePath) => {
+                        if (!snapshot) return;
+                        vscode.postMessage({ type: 'openFile', payload: { repoRoot: snapshot.repoRoot, filePath } });
+                    }}
                 />
 
                 {showSidebar ? <div className="resizer" onMouseDown={onDividerMouseDown} /> : null}

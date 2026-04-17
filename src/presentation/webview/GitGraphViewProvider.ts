@@ -3,6 +3,7 @@ import type { BranchSummary, GraphFilters, RepoRemote } from '../../core/models/
 import type { GitRepository } from '../../core/ports/GitRepository';
 import { createNonce } from '../../shared/nonce';
 import type { ExtensionToWebviewMessage, WebviewToExtensionMessage } from '../../shared/protocol';
+import { buildRepoStatusBarText, buildRepoSummary } from '../../shared/repoSummary';
 
 export class GitGraphViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'repoFlow.graphPanel';
@@ -23,7 +24,8 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
   public constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly repository: GitRepository,
-    private readonly output: vscode.OutputChannel
+    private readonly output: vscode.OutputChannel,
+    private readonly repoStatusBar?: vscode.StatusBarItem
   ) { }
 
   public resolveWebviewView(
@@ -133,6 +135,8 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
 
   public async refresh(): Promise<void> {
     if (!this.currentPanel && !this.currentView?.visible) {
+      // Webview is not open — still refresh the status bar
+      await this.refreshStatusBarOnly();
       return;
     }
 
@@ -153,6 +157,12 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
 
       await this.postMessage({ type: 'graphSnapshot', payload: snapshot });
 
+      if (this.repoStatusBar) {
+        const status = snapshot.localChanges;
+        this.repoStatusBar.text = buildRepoStatusBarText(status);
+        this.repoStatusBar.tooltip = buildRepoSummary(status);
+      }
+
       if (this.selectedCommitHash) {
         const detail = await this.repository.getCommitDetail(snapshot.repoRoot, this.selectedCommitHash);
         await this.postMessage({ type: 'commitDetail', payload: detail });
@@ -163,6 +173,20 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
         this.pendingRevealHash = undefined;
       }
     });
+  }
+
+  private async refreshStatusBarOnly(): Promise<void> {
+    if (!this.repoStatusBar) {
+      return;
+    }
+    try {
+      const repoRoot = await this.repository.resolveRepositoryRoot();
+      const status = await this.repository.getLocalChanges(repoRoot);
+      this.repoStatusBar.text = buildRepoStatusBarText(status);
+      this.repoStatusBar.tooltip = buildRepoSummary(status);
+    } catch {
+      // Not in a git repo — keep the default label
+    }
   }
 
   private async handleMessage(message: WebviewToExtensionMessage): Promise<void> {
@@ -586,6 +610,44 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
           this.output.appendLine(`[worktree-add-detached] ${msg}`);
           await this.postMessage({ type: 'worktreeError', payload: { message: msg } });
         }
+        return;
+      }
+      case 'continueOperation':
+        await this.executeRepositoryAction('Continuing...', async () => {
+          await this.repository.continueOperation(message.payload.repoRoot, message.payload.state as import('../../core/models/GitModels').RepoSpecialState);
+        });
+        return;
+      case 'skipOperation':
+        await this.executeRepositoryAction('Skipping...', async () => {
+          await this.repository.skipRebaseOperation(message.payload.repoRoot);
+        });
+        return;
+      case 'abortOperation':
+        await this.executeRepositoryAction('Aborting...', async () => {
+          await this.repository.abortOperation(message.payload.repoRoot, message.payload.state as import('../../core/models/GitModels').RepoSpecialState);
+        });
+        return;
+      case 'pullRepo':
+        await this.executeRepositoryAction('Pulling...', async () => {
+          await this.repository.pull(message.payload.repoRoot);
+        });
+        return;
+      case 'pushRepo':
+        await this.executeRepositoryAction('Pushing...', async () => {
+          await this.repository.push(message.payload.repoRoot);
+        });
+        return;
+      case 'fetchRepo':
+        await this.executeRepositoryAction('Fetching...', async () => {
+          await this.repository.fetch(message.payload.repoRoot);
+        });
+        return;
+      case 'openFile': {
+        const fullPath = vscode.Uri.file(
+          require('node:path').join(message.payload.repoRoot, message.payload.filePath)
+        );
+        const doc = await vscode.workspace.openTextDocument(fullPath);
+        await vscode.window.showTextDocument(doc, { preserveFocus: false, preview: false });
         return;
       }
       default:

@@ -15,7 +15,14 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   const contentProvider = new GitContentProvider(repository);
-  const graphViewProvider = new GitGraphViewProvider(context.extensionUri, repository, output);
+
+  const repoStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  repoStatusBar.command = 'repoFlow.showRepoActions';
+  repoStatusBar.text = '$(git-branch) RepoFlow';
+  repoStatusBar.tooltip = 'RepoFlow: Click to see repo actions';
+  repoStatusBar.show();
+
+  const graphViewProvider = new GitGraphViewProvider(context.extensionUri, repository, output, repoStatusBar);
   const blameController = new GitBlameController(repository, output);
 
   let refreshTimer: NodeJS.Timeout | undefined;
@@ -37,7 +44,14 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.createFileSystemWatcher('**/.git/HEAD'),
     vscode.workspace.createFileSystemWatcher('**/.git/index'),
     vscode.workspace.createFileSystemWatcher('**/.git/refs/**'),
-    vscode.workspace.createFileSystemWatcher('**/.git/worktrees/**')
+    vscode.workspace.createFileSystemWatcher('**/.git/worktrees/**'),
+    // Special-state files (merge, rebase, cherry-pick, revert, bisect)
+    vscode.workspace.createFileSystemWatcher('**/.git/MERGE_HEAD'),
+    vscode.workspace.createFileSystemWatcher('**/.git/CHERRY_PICK_HEAD'),
+    vscode.workspace.createFileSystemWatcher('**/.git/REVERT_HEAD'),
+    vscode.workspace.createFileSystemWatcher('**/.git/BISECT_LOG'),
+    vscode.workspace.createFileSystemWatcher('**/.git/rebase-merge/**'),
+    vscode.workspace.createFileSystemWatcher('**/.git/rebase-apply/**')
   ];
 
   for (const watcher of gitWatchers) {
@@ -47,6 +61,7 @@ export function activate(context: vscode.ExtensionContext): void {
   }
 
   context.subscriptions.push(output);
+  context.subscriptions.push(repoStatusBar);
   context.subscriptions.push(...gitWatchers);
   context.subscriptions.push(blameController);
   context.subscriptions.push(new vscode.Disposable(() => {
@@ -62,6 +77,72 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('repoFlow.openView', () => {
       graphViewProvider.openOrReveal();
+    }),
+    vscode.commands.registerCommand('repoFlow.showRepoActions', async () => {
+      interface ActionItem extends vscode.QuickPickItem { action: string; }
+      type RunAction = (repoRoot: string) => Promise<void>;
+
+      const SPECIAL_LABEL: Record<string, string> = {
+        merging: 'MERGING', rebasing: 'REBASING', 'cherry-picking': 'CHERRY-PICKING',
+        reverting: 'REVERTING', bisecting: 'BISECTING'
+      };
+
+      try {
+        const repoRoot = await repository.resolveRepositoryRoot();
+        const status = await repository.getLocalChanges(repoRoot);
+        const branch = status.currentBranch ?? 'HEAD';
+
+        const items: ActionItem[] = [];
+
+        if (status.specialState && status.specialState !== 'detached') {
+          const label = SPECIAL_LABEL[status.specialState] ?? status.specialState.toUpperCase();
+          items.push(
+            { label: `$(play) Continue ${label}`, description: '', action: 'continue' },
+            ...(status.specialState === 'rebasing'
+              ? [{ label: '$(debug-step-over) Skip Commit', description: '', action: 'skip' } as ActionItem]
+              : []),
+            { label: `$(stop) Abort ${label}`, description: '', action: 'abort' },
+            { label: '', kind: vscode.QuickPickItemKind.Separator, description: '', action: '' }
+          );
+        }
+
+        if (status.behind > 0) {
+          items.push({ label: `$(arrow-down) Pull  (${status.behind} behind ${status.upstream ?? 'upstream'})`, description: '', action: 'pull' });
+        }
+        if (status.ahead > 0) {
+          items.push({ label: `$(arrow-up) Push  (${status.ahead} ahead of ${status.upstream ?? 'upstream'})`, description: '', action: 'push' });
+        }
+        items.push({ label: '$(sync) Fetch', description: 'Update remote refs', action: 'fetch' });
+        items.push({ label: '', kind: vscode.QuickPickItemKind.Separator, description: '', action: '' });
+        items.push({ label: '$(git-branch) Open Graph', description: '', action: 'openGraph' });
+
+        const choice = await vscode.window.showQuickPick(items, {
+          title: `RepoFlow — ${branch}`,
+          placeHolder: 'Select an action'
+        });
+
+        if (!choice || !choice.action) return;
+
+        const runAndRefresh = async (fn: RunAction): Promise<void> => {
+          await fn(repoRoot);
+          await graphViewProvider.refresh();
+        };
+
+        const actions: Record<string, () => Promise<void>> = {
+          continue: () => runAndRefresh((r) => repository.continueOperation(r, status.specialState!)),
+          skip: () => runAndRefresh((r) => repository.skipRebaseOperation(r)),
+          abort: () => runAndRefresh((r) => repository.abortOperation(r, status.specialState!)),
+          pull: () => runAndRefresh((r) => repository.pull(r)),
+          push: () => runAndRefresh((r) => repository.push(r)),
+          fetch: () => runAndRefresh((r) => repository.fetch(r)),
+          openGraph: async () => graphViewProvider.openOrReveal()
+        };
+
+        await actions[choice.action]?.();
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        void vscode.window.showErrorMessage(`RepoFlow: ${msg}`);
+      }
     }),
     vscode.commands.registerCommand('repoFlow.refresh', async () => {
       await graphViewProvider.refresh();

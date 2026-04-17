@@ -1,6 +1,6 @@
 import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CommitSummary, GraphSnapshot } from '../../../src/core/models/GitModels';
+import type { CommitSummary, GraphSnapshot, WorkingTreeStatus } from '../../../src/core/models/GitModels';
 
 interface GraphCanvasProps {
     snapshot: GraphSnapshot;
@@ -15,6 +15,8 @@ interface GraphCanvasProps {
     onOpenDeleteBranches: () => void;
     onOpenStashModal: () => void;
     onOpenWorktreeModal: () => void;
+    onBannerAction: (action: 'continue' | 'skip' | 'abort' | 'pull' | 'push' | 'fetch') => void;
+    onOpenConflictFile: (filePath: string) => void;
 }
 
 interface HoverTooltip {
@@ -88,6 +90,169 @@ function CommitHoverTooltip({ data, onEnter, onLeave }: {
 
 const PALETTE = ['#22c55e', '#38bdf8', '#f59e0b', '#fb7185', '#a78bfa', '#14b8a6', '#f97316', '#84cc16'];
 
+const SPECIAL_STATE_LABEL: Record<string, string> = {
+    merging: 'MERGING',
+    rebasing: 'REBASING',
+    'cherry-picking': 'CHERRY-PICKING',
+    reverting: 'REVERTING',
+    bisecting: 'BISECTING',
+};
+
+function buildRepoSummary(status: WorkingTreeStatus): string {
+    const branch = status.currentBranch ?? 'HEAD';
+    const staged = status.staged.length;
+    const unstaged = status.unstaged.length;
+    const conflicted = status.conflicted.length;
+
+    const parts: string[] = [];
+
+    if (status.specialState === 'detached') {
+        parts.push(`Detached HEAD at ${branch}`);
+    } else {
+        parts.push(`Branch ${branch}`);
+    }
+
+    const stateLabel = status.specialState ? SPECIAL_STATE_LABEL[status.specialState] : undefined;
+    if (stateLabel) {
+        parts.push(stateLabel);
+    }
+
+    if (status.ahead > 0 || status.behind > 0) {
+        const divParts: string[] = [];
+        if (status.ahead > 0) divParts.push(`${status.ahead} ahead`);
+        if (status.behind > 0) divParts.push(`${status.behind} behind`);
+        const upstreamSuffix = status.upstream ? ` of ${status.upstream}` : '';
+        parts.push(divParts.join(', ') + upstreamSuffix);
+    }
+
+    if (conflicted > 0 || staged > 0 || unstaged > 0) {
+        const fileParts: string[] = [];
+        if (staged > 0) fileParts.push(`${staged} staged`);
+        if (unstaged > 0) fileParts.push(`${unstaged} modified`);
+        if (conflicted > 0) fileParts.push(`${conflicted} conflict${conflicted > 1 ? 's' : ''}`);
+        parts.push(fileParts.join(', '));
+    }
+
+    if (parts.length === 1) {
+        parts.push('clean');
+    }
+
+    return parts.join(' — ');
+}
+
+function formatTimeAgo(isoDate: string): string {
+    const seconds = Math.floor((Date.now() - new Date(isoDate).getTime()) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
+
+function RepoStatusBanner({ status, onAction, onOpenConflictFile }: {
+    status: WorkingTreeStatus;
+    onAction: (action: 'continue' | 'skip' | 'abort' | 'pull' | 'push' | 'fetch') => void;
+    onOpenConflictFile: (filePath: string) => void;
+}) {
+    const hasSpecialState = Boolean(status.specialState);
+    const hasConflicts = status.conflicted.length > 0;
+
+    const variant = hasSpecialState && (
+        status.specialState === 'merging' ||
+        status.specialState === 'rebasing' ||
+        status.specialState === 'cherry-picking' ||
+        status.specialState === 'reverting'
+    )
+        ? 'warning'
+        : hasSpecialState
+            ? 'info'
+            : status.behind > 0
+                ? 'behind'
+                : status.ahead > 0
+                    ? 'ahead'
+                    : 'clean';
+
+    const iconClass = hasSpecialState
+        ? 'codicon-warning'
+        : status.behind > 0
+            ? 'codicon-arrow-down'
+            : status.ahead > 0
+                ? 'codicon-arrow-up'
+                : 'codicon-check';
+
+    const canContinue = hasSpecialState && status.specialState !== 'detached' && status.specialState !== 'bisecting' && !hasConflicts;
+    const canSkip = status.specialState === 'rebasing';
+    const canAbort = hasSpecialState && status.specialState !== 'detached';
+
+    return (
+        <div className={`repo-status-banner repo-status-banner--${variant}`} role="status" aria-live="polite">
+            <div className="repo-status-banner__row">
+                <i className={`codicon ${iconClass}`} aria-hidden="true" />
+                <span className="repo-status-banner__text">{buildRepoSummary(status)}</span>
+                {status.lastFetchAt && (
+                    <span className="repo-status-banner__fetch" title={`Last fetch: ${new Date(status.lastFetchAt).toLocaleString()}`}>
+                        fetched {formatTimeAgo(status.lastFetchAt)}
+                    </span>
+                )}
+                <div className="repo-status-banner__actions">
+                    {canContinue && (
+                        <button type="button" className="repo-status-banner__btn repo-status-banner__btn--primary" onClick={() => onAction('continue')} title="Continue current operation">
+                            <i className="codicon codicon-play" aria-hidden="true" /> Continue
+                        </button>
+                    )}
+                    {canSkip && (
+                        <button type="button" className="repo-status-banner__btn" onClick={() => onAction('skip')} title="Skip current commit during rebase">
+                            <i className="codicon codicon-debug-step-over" aria-hidden="true" /> Skip
+                        </button>
+                    )}
+                    {canAbort && (
+                        <button type="button" className="repo-status-banner__btn repo-status-banner__btn--danger" onClick={() => onAction('abort')} title="Abort current operation">
+                            <i className="codicon codicon-stop" aria-hidden="true" /> Abort
+                        </button>
+                    )}
+                    {!hasSpecialState && status.behind > 0 && (
+                        <button type="button" className="repo-status-banner__btn repo-status-banner__btn--primary" onClick={() => onAction('pull')} title={`Pull ${status.behind} commit${status.behind > 1 ? 's' : ''} from ${status.upstream ?? 'upstream'}`}>
+                            <i className="codicon codicon-arrow-down" aria-hidden="true" /> Pull
+                        </button>
+                    )}
+                    {!hasSpecialState && status.ahead > 0 && (
+                        <button type="button" className="repo-status-banner__btn" onClick={() => onAction('push')} title={`Push ${status.ahead} commit${status.ahead > 1 ? 's' : ''} to ${status.upstream ?? 'upstream'}`}>
+                            <i className="codicon codicon-arrow-up" aria-hidden="true" /> Push
+                        </button>
+                    )}
+                    <button type="button" className="repo-status-banner__btn repo-status-banner__btn--icon" onClick={() => onAction('fetch')} title="Fetch remote refs">
+                        <i className="codicon codicon-sync" aria-hidden="true" />
+                    </button>
+                </div>
+            </div>
+            {hasConflicts && (
+                <div className="repo-status-banner__conflicts">
+                    <span className="repo-status-banner__conflicts-label">
+                        <i className="codicon codicon-warning" aria-hidden="true" /> {status.conflicted.length} conflict{status.conflicted.length > 1 ? 's' : ''} — click to open:
+                    </span>
+                    <div className="repo-status-banner__conflicts-list">
+                        {status.conflicted.map((f) => (
+                            <button
+                                key={f.path}
+                                type="button"
+                                className="repo-status-banner__conflict-file"
+                                onClick={() => onOpenConflictFile(f.path)}
+                                title={`Open ${f.path}`}
+                            >
+                                <i className="codicon codicon-file" aria-hidden="true" />
+                                {f.path}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+
 const shortDateFormatter = new Intl.DateTimeFormat(undefined, {
     day: '2-digit',
     month: 'short',
@@ -131,7 +296,7 @@ function highlightText(text: string, pattern: RegExp | null): ReactNode {
     return <>{parts}</>;
 }
 
-export function GraphCanvas({ snapshot, selectedCommitHash, selectedUncommitted, onSelectCommit, onSelectUncommitted, onOpenContextMenu, onLoadMore, onOpenSettings, onOpenPR, onOpenDeleteBranches, onOpenStashModal, onOpenWorktreeModal }: GraphCanvasProps) {
+export function GraphCanvas({ snapshot, selectedCommitHash, selectedUncommitted, onSelectCommit, onSelectUncommitted, onOpenContextMenu, onLoadMore, onOpenSettings, onOpenPR, onOpenDeleteBranches, onOpenStashModal, onOpenWorktreeModal, onBannerAction, onOpenConflictFile }: GraphCanvasProps) {
     const rowHeight = 46;
     const laneGap = 20;
     const graphWidth = Math.max(110, 52 + (snapshot.maxLane + 1) * laneGap);
@@ -386,134 +551,139 @@ export function GraphCanvas({ snapshot, selectedCommitHash, selectedUncommitted,
                 </div>
             </header>
 
-            {searchOpen && (
-                <div className="find-bar" role="search">
-                    <div className="find-bar__search-wrap">
-                        <i className="codicon codicon-search find-bar__search-icon" aria-hidden="true" />
-                        <input
-                            ref={searchInputRef}
-                            className="find-bar__input"
-                            type="text"
-                            placeholder="Find in history…"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={handleFindKeyDown}
-                            aria-label="Find in commit history"
-                            spellCheck={false}
-                        />
-                    </div>
-                    <div className="find-bar__opts" role="group" aria-label="Search options">
-                        <button type="button" className={`find-bar__opt${caseSensitive ? ' find-bar__opt--on' : ''}`} title="Match Case (Alt+C)" onClick={() => setCaseSensitive((v) => !v)} aria-pressed={caseSensitive}>Aa</button>
-                        <div className="find-bar__divider" />
-                        <button type="button" className={`find-bar__opt${wholeWord ? ' find-bar__opt--on' : ''}`} title="Match Whole Word (Alt+W)" onClick={() => setWholeWord((v) => !v)} aria-pressed={wholeWord}>ab</button>
-                        <div className="find-bar__divider" />
-                        <button type="button" className={`find-bar__opt${useRegex ? ' find-bar__opt--on' : ''}`} title="Use Regular Expression (Alt+R)" onClick={() => setUseRegex((v) => !v)} aria-pressed={useRegex}>.*</button>
-                    </div>
-                    <span className="find-bar__count" aria-live="polite">
-                        {searchQuery
-                            ? (matchedRows.length === 0 ? 'No results' : `${currentMatchIndex + 1} / ${matchedRows.length}`)
-                            : '\u00a0'}
-                    </span>
-                    <div className="find-bar__nav-group">
-                        <button type="button" className="find-bar__nav" onClick={prevMatch} title="Previous Match (Shift+Enter)" disabled={matchedRows.length === 0}>
-                            <i className="codicon codicon-arrow-up" aria-hidden="true" />
-                        </button>
-                        <button type="button" className="find-bar__nav" onClick={nextMatch} title="Next Match (Enter)" disabled={matchedRows.length === 0}>
-                            <i className="codicon codicon-arrow-down" aria-hidden="true" />
-                        </button>
-                    </div>
-                    <button type="button" className="find-bar__close" onClick={closeSearch} title="Close (Escape)" aria-label="Close search">
-                        <i className="codicon codicon-close" aria-hidden="true" />
-                    </button>
-                </div>
-            )}
+            <RepoStatusBanner status={snapshot.localChanges} onAction={onBannerAction} onOpenConflictFile={onOpenConflictFile} />
 
-            <div className="graph__viewport" ref={viewportRef}>
-                <div className="graph__canvas" style={{ '--graph-width': `${graphWidth}px` } as CSSProperties}>
-                    <svg className="graph__svg" width={graphWidth} height={totalHeight} viewBox={`0 0 ${graphWidth} ${totalHeight}`} preserveAspectRatio="none" role="img" aria-label="Git graph canvas">
-                        <defs>
-                            <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
-                                <path d="M 24 0 L 0 0 0 24" fill="none" stroke="rgba(148, 163, 184, 0.12)" strokeWidth="1" />
-                            </pattern>
-                        </defs>
-                        <rect x="0" y="0" width={graphWidth} height={totalHeight} fill="url(#grid)" />
-                        {hasUncommitted && (
-                            <>
-                                {uncommittedHeadRow !== undefined && (
-                                    <path
-                                        d={`M ${uncommittedNodeX} ${uncommittedNodeY} C ${uncommittedNodeX} ${uncommittedEdgeMidY}, ${uncommittedNodeX} ${uncommittedEdgeMidY}, ${uncommittedNodeX} ${uncommittedEdgeEndY}`}
-                                        fill="none"
-                                        stroke={getLaneColor(uncommittedLane)}
-                                        strokeOpacity={0.85}
-                                        strokeWidth={1.5}
-                                        strokeDasharray="4 3"
-                                        strokeLinecap="round"
-                                    />
-                                )}
-                                <circle cx={uncommittedNodeX} cy={uncommittedNodeY} r={12} fill="transparent" onClick={onSelectUncommitted} style={{ cursor: 'pointer' }} />
-                                <circle cx={uncommittedNodeX} cy={uncommittedNodeY} r={selectedUncommitted ? 6 : 4.5} fill="none" stroke={getLaneColor(uncommittedLane)} strokeWidth={selectedUncommitted ? 2 : 1.5} />
-                            </>
-                        )}
-                        <g transform={`translate(0, ${uncommittedOffset})`}>
-                            {edges}
-                            {nodes}
-                        </g>
-                    </svg>
-
-                    <div className="graph__rows">
-                        {hasUncommitted && (
-                            <button
-                                type="button"
-                                className={`graph-row${selectedUncommitted ? ' graph-row--selected' : ''}`}
-                                onClick={onSelectUncommitted}
-                            >
-                                <div className="graph-row__title-line">
-                                    <span className="graph-row__subject">Uncommitted Changes ({totalChanges})</span>
-                                </div>
-                                <div className="graph-row__meta">
-                                    <span>*</span>
-                                    <span>*</span>
-                                </div>
+            <div className="graph__body">
+                {searchOpen && (
+                    <div className="find-bar" role="search">
+                        <div className="find-bar__search-wrap">
+                            <i className="codicon codicon-search find-bar__search-icon" aria-hidden="true" />
+                            <input
+                                ref={searchInputRef}
+                                className="find-bar__input"
+                                type="text"
+                                placeholder="Find in history…"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={handleFindKeyDown}
+                                aria-label="Find in commit history"
+                                spellCheck={false}
+                            />
+                        </div>
+                        <div className="find-bar__sep" />
+                        <div className="find-bar__opts" role="group" aria-label="Search options">
+                            <button type="button" className={`find-bar__opt${caseSensitive ? ' find-bar__opt--on' : ''}`} title="Match Case (Alt+C)" onClick={() => setCaseSensitive((v) => !v)} aria-pressed={caseSensitive}>Aa</button>
+                            <button type="button" className={`find-bar__opt find-bar__opt--word${wholeWord ? ' find-bar__opt--on' : ''}`} title="Match Whole Word (Alt+W)" onClick={() => setWholeWord((v) => !v)} aria-pressed={wholeWord}>ab</button>
+                            <button type="button" className={`find-bar__opt${useRegex ? ' find-bar__opt--on' : ''}`} title="Use Regular Expression (Alt+R)" onClick={() => setUseRegex((v) => !v)} aria-pressed={useRegex}>.*</button>
+                        </div>
+                        <div className="find-bar__sep" />
+                        <span className={`find-bar__count${searchQuery && matchedRows.length === 0 ? ' find-bar__count--no-results' : ''}`} aria-live="polite">
+                            {searchQuery
+                                ? (matchedRows.length === 0 ? 'No results' : `${currentMatchIndex + 1} / ${matchedRows.length}`)
+                                : '\u00a0'}
+                        </span>
+                        <div className="find-bar__nav-group">
+                            <button type="button" className="find-bar__nav" onClick={prevMatch} title="Previous Match (Shift+Enter)" disabled={matchedRows.length === 0}>
+                                <i className="codicon codicon-arrow-up" aria-hidden="true" />
                             </button>
-                        )}
-                        {snapshot.rows.map((row) => {
-                            const isSelected = row.commit.hash === selectedCommitHash;
-                            const matchIdx = matchIndexByHash.get(row.commit.hash);
-                            const isMatch = matchIdx !== undefined;
-                            const isCurrentMatch = matchIdx === currentMatchIndex && isMatch;
-                            const rowClass = [
-                                'graph-row',
-                                isSelected ? 'graph-row--selected' : '',
-                                isMatch ? 'graph-row--match' : '',
-                                isCurrentMatch ? 'graph-row--match-current' : ''
-                            ].filter(Boolean).join(' ');
-                            return (
+                            <button type="button" className="find-bar__nav" onClick={nextMatch} title="Next Match (Enter)" disabled={matchedRows.length === 0}>
+                                <i className="codicon codicon-arrow-down" aria-hidden="true" />
+                            </button>
+                        </div>
+                        <div className="find-bar__sep find-bar__sep--narrow" />
+                        <button type="button" className="find-bar__close" onClick={closeSearch} title="Close (Escape)" aria-label="Close search">
+                            <i className="codicon codicon-close" aria-hidden="true" />
+                        </button>
+                    </div>
+                )}
+
+                <div className="graph__viewport" ref={viewportRef}>
+                    <div className="graph__canvas" style={{ '--graph-width': `${graphWidth}px` } as CSSProperties}>
+                        <svg className="graph__svg" width={graphWidth} height={totalHeight} viewBox={`0 0 ${graphWidth} ${totalHeight}`} preserveAspectRatio="none" role="img" aria-label="Git graph canvas">
+                            <defs>
+                                <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                                    <path d="M 24 0 L 0 0 0 24" fill="none" stroke="rgba(148, 163, 184, 0.12)" strokeWidth="1" />
+                                </pattern>
+                            </defs>
+                            <rect x="0" y="0" width={graphWidth} height={totalHeight} fill="url(#grid)" />
+                            {hasUncommitted && (
+                                <>
+                                    {uncommittedHeadRow !== undefined && (
+                                        <path
+                                            d={`M ${uncommittedNodeX} ${uncommittedNodeY} C ${uncommittedNodeX} ${uncommittedEdgeMidY}, ${uncommittedNodeX} ${uncommittedEdgeMidY}, ${uncommittedNodeX} ${uncommittedEdgeEndY}`}
+                                            fill="none"
+                                            stroke={getLaneColor(uncommittedLane)}
+                                            strokeOpacity={0.85}
+                                            strokeWidth={1.5}
+                                            strokeDasharray="4 3"
+                                            strokeLinecap="round"
+                                        />
+                                    )}
+                                    <circle cx={uncommittedNodeX} cy={uncommittedNodeY} r={12} fill="transparent" onClick={onSelectUncommitted} style={{ cursor: 'pointer' }} />
+                                    <circle cx={uncommittedNodeX} cy={uncommittedNodeY} r={selectedUncommitted ? 6 : 4.5} fill="none" stroke={getLaneColor(uncommittedLane)} strokeWidth={selectedUncommitted ? 2 : 1.5} />
+                                </>
+                            )}
+                            <g transform={`translate(0, ${uncommittedOffset})`}>
+                                {edges}
+                                {nodes}
+                            </g>
+                        </svg>
+
+                        <div className="graph__rows">
+                            {hasUncommitted && (
                                 <button
-                                    key={row.commit.hash}
-                                    data-hash={row.commit.hash}
                                     type="button"
-                                    className={rowClass}
-                                    onClick={() => onSelectCommit(row.commit)}
-                                    onContextMenu={(event) => handleContextMenu(event, row.commit)}
+                                    className={`graph-row${selectedUncommitted ? ' graph-row--selected' : ''}`}
+                                    onClick={onSelectUncommitted}
                                 >
                                     <div className="graph-row__title-line">
-                                        <span className="graph-row__subject">{highlightText(row.commit.subject, searchPattern)}</span>
-                                        {row.commit.refs.map((ref) => (
-                                            <span key={`${row.commit.hash}-${ref.type}-${ref.name}`} className={`ref-pill ref-pill--${ref.type}`}>
-                                                {highlightText(ref.name, searchPattern)}
-                                            </span>
-                                        ))}
-                                        {row.commit.isDirtyHead ? <span className="ref-pill ref-pill--dirty">dirty</span> : null}
+                                        <span className="graph-row__subject">Uncommitted Changes ({totalChanges})</span>
                                     </div>
-
                                     <div className="graph-row__meta">
-                                        <span>{highlightText(row.commit.shortHash, searchPattern)}</span>
-                                        <span>{highlightText(row.commit.authorName, searchPattern)}</span>
-                                        <span>{highlightText(formatDate(row.commit.authoredAt), searchPattern)}</span>
+                                        <span>*</span>
+                                        <span>*</span>
                                     </div>
                                 </button>
-                            );
-                        })}
+                            )}
+                            {snapshot.rows.map((row) => {
+                                const isSelected = row.commit.hash === selectedCommitHash;
+                                const matchIdx = matchIndexByHash.get(row.commit.hash);
+                                const isMatch = matchIdx !== undefined;
+                                const isCurrentMatch = matchIdx === currentMatchIndex && isMatch;
+                                const rowClass = [
+                                    'graph-row',
+                                    isSelected ? 'graph-row--selected' : '',
+                                    isMatch ? 'graph-row--match' : '',
+                                    isCurrentMatch ? 'graph-row--match-current' : ''
+                                ].filter(Boolean).join(' ');
+                                return (
+                                    <button
+                                        key={row.commit.hash}
+                                        data-hash={row.commit.hash}
+                                        type="button"
+                                        className={rowClass}
+                                        onClick={() => onSelectCommit(row.commit)}
+                                        onContextMenu={(event) => handleContextMenu(event, row.commit)}
+                                    >
+                                        <div className="graph-row__title-line">
+                                            <span className="graph-row__subject">{highlightText(row.commit.subject, searchPattern)}</span>
+                                            {row.commit.refs.map((ref) => (
+                                                <span key={`${row.commit.hash}-${ref.type}-${ref.name}`} className={`ref-pill ref-pill--${ref.type}`}>
+                                                    {highlightText(ref.name, searchPattern)}
+                                                </span>
+                                            ))}
+                                            {row.commit.isDirtyHead ? <span className="ref-pill ref-pill--dirty">dirty</span> : null}
+                                        </div>
+
+                                        <div className="graph-row__meta">
+                                            <span>{highlightText(row.commit.shortHash, searchPattern)}</span>
+                                            <span>{highlightText(row.commit.authorName, searchPattern)}</span>
+                                            <span>{highlightText(formatDate(row.commit.authoredAt), searchPattern)}</span>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </div>

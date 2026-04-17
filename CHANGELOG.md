@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.9
+
+- **Repo status banner**: a persistent strip below the graph header always shows the current branch, upstream divergence (ahead/behind) and any in-progress special state (MERGING, REBASING, CHERRY-PICKING, REVERTING, BISECTING, detached HEAD).
+- **Banner action buttons**: contextual buttons appear directly in the banner — no need to open a terminal:
+  - *MERGING / CHERRY-PICKING / REVERTING* → **Continue** / **Abort**
+  - *REBASING* → **Continue** / **Skip** / **Abort**
+  - Branch *behind upstream* → **Pull** (shows commit count and upstream name)
+  - Branch *ahead of upstream* → **Push**
+  - **Fetch** button always visible in the banner
+- **Conflict file list**: when a merge or rebase leaves conflicts, the banner expands to list each conflicted file as a clickable button that opens the file in the editor for resolution.
+- **Last fetch indicator**: the banner displays how long ago the last `git fetch` ran (e.g. `fetched 2h ago`) derived from the `.git/FETCH_HEAD` mtime, with the exact timestamp on hover.
+- **Status bar item**: a live status bar entry (bottom-left) shows the current branch, ahead/behind counts and any special state — updated automatically whenever HEAD, the index or refs change, even when the graph panel is closed.
+- **Status bar quick-pick**: clicking the status bar item opens a contextual quick-pick with the same actions (Continue/Skip/Abort, Pull, Push, Fetch, Open Graph), so common operations are one click away from anywhere in VS Code.
+- **Auto-detection of special states**: `MERGE_HEAD`, `CHERRY_PICK_HEAD`, `REVERT_HEAD`, `BISECT_LOG`, `rebase-merge/` and `rebase-apply/` are watched via `FileSystemWatcher` so the UI reacts within ~250 ms of any state change.
+- **Upstream branch tracking**: `git status --porcelain=2` now also reads the `# branch.upstream` header so the exact upstream ref (e.g. `origin/main`) is shown in all summaries.
+
 ## 1.0.8
 
 - **Local & remote source branches**: the source branch picker now lists both local and remote (origin) branches, grouped by separator, so you can create a branch from any ref.

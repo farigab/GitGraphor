@@ -165,6 +165,11 @@ export function parseWorkingTreeStatus(raw: string): WorkingTreeStatus {
         return;
       }
 
+      if (line.startsWith('# branch.upstream ')) {
+        status.upstream = line.replace('# branch.upstream ', '').trim();
+        return;
+      }
+
       if (line.startsWith('# branch.ab ')) {
         const match = /\+(\d+)\s+-(\d+)/.exec(line);
         if (match) {

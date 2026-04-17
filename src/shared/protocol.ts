@@ -40,7 +40,14 @@ export type WebviewToExtensionMessage =
   | { type: 'copyWorktreePath'; payload: { path: string } }
   | { type: 'lockWorktree'; payload: { repoRoot: string; path: string } }
   | { type: 'unlockWorktree'; payload: { repoRoot: string; path: string } }
-  | { type: 'moveWorktree'; payload: { repoRoot: string; path: string; newPath: string } };
+  | { type: 'moveWorktree'; payload: { repoRoot: string; path: string; newPath: string } }
+  | { type: 'continueOperation'; payload: { repoRoot: string; state: string } }
+  | { type: 'skipOperation'; payload: { repoRoot: string } }
+  | { type: 'abortOperation'; payload: { repoRoot: string; state: string } }
+  | { type: 'pullRepo'; payload: { repoRoot: string } }
+  | { type: 'pushRepo'; payload: { repoRoot: string } }
+  | { type: 'fetchRepo'; payload: { repoRoot: string } }
+  | { type: 'openFile'; payload: { repoRoot: string; filePath: string } };
 
 export type ExtensionToWebviewMessage =
   | { type: 'graphSnapshot'; payload: GraphSnapshot }
