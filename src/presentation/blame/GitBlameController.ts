@@ -291,7 +291,7 @@ export class GitBlameController implements vscode.Disposable {
     const statsLine = isUncommitted
       ? '$(circle-slash) Not Committed Yet'
       : stats
-        ? `\`\`\`diff\n+${stats.insertions} insertion${stats.insertions !== 1 ? 's' : ''}\n-${stats.deletions} deletion${stats.deletions !== 1 ? 's' : ''}\n ${stats.filesChanged} file${stats.filesChanged !== 1 ? 's' : ''} changed\n\`\`\``
+        ? `<span style="color:#4ec9b0;">+${stats.insertions} insertion${stats.insertions !== 1 ? 's' : ''}</span>&ensp;<span style="color:#f14c4c;">-${stats.deletions} deletion${stats.deletions !== 1 ? 's' : ''}</span>&ensp;${stats.filesChanged} file${stats.filesChanged !== 1 ? 's' : ''} changed`
         : '$(loading~spin) Loading stats\u2026';
 
     let linksLine = '';
@@ -319,6 +319,7 @@ export class GitBlameController implements vscode.Disposable {
       ].join('\n'),
       /* supportThemeIcons */ true,
     );
+    md.supportHtml = true;
     md.isTrusted = true;
 
     // Cover the full line so hovering anywhere on it triggers the popup.
