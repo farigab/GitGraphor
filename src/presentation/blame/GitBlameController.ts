@@ -68,6 +68,8 @@ function buildGitHubCommitUrl(remotes: RepoGitConfig['remotes'], commitHash: str
 
 // ─── decoration types ────────────────────────────────────────────────────────
 
+const UNCOMMITTED_HASH_PREFIX = '0000000';
+
 const BLAME_DECORATION = vscode.window.createTextEditorDecorationType({
   after: {
     margin: '0 0 0 3ch',
@@ -207,11 +209,12 @@ export class GitBlameController implements vscode.Disposable {
       }
 
       const config = await this.getRepoConfig(repoRoot, headHash);
+      const isUncommitted = entry.commitHash.startsWith(UNCOMMITTED_HASH_PREFIX);
       const cachedStats = this.statsCache.get(entry.commitHash);
 
       this.applyDecoration(editor, line, entry, config);
 
-      if (!cachedStats) {
+      if (!cachedStats && !isUncommitted) {
         void this.fetchStats(entry, repoRoot);
       }
     } catch (err) {
@@ -283,17 +286,24 @@ export class GitBlameController implements vscode.Disposable {
     const absDate = formatAbsoluteDate(entry.committedAt);
     const stats = this.statsCache.get(entry.commitHash);
 
-    const statsLine = stats
-      ? `\`\`\`diff\n+${stats.insertions} insertion${stats.insertions !== 1 ? 's' : ''}\n-${stats.deletions} deletion${stats.deletions !== 1 ? 's' : ''}\n ${stats.filesChanged} file${stats.filesChanged !== 1 ? 's' : ''} changed\n\`\`\``
-      : '$(loading~spin) Loading stats\u2026';
+    const isUncommitted = entry.commitHash.startsWith(UNCOMMITTED_HASH_PREFIX);
 
-    const ghUrl = buildGitHubCommitUrl(config.remotes, entry.commitHash);
-    const ghPart = ghUrl ? `[$(link-external) Open on GitHub](${ghUrl})` : '';
+    const statsLine = isUncommitted
+      ? '$(circle-slash) Not Committed Yet'
+      : stats
+        ? `\`\`\`diff\n+${stats.insertions} insertion${stats.insertions !== 1 ? 's' : ''}\n-${stats.deletions} deletion${stats.deletions !== 1 ? 's' : ''}\n ${stats.filesChanged} file${stats.filesChanged !== 1 ? 's' : ''} changed\n\`\`\``
+        : '$(loading~spin) Loading stats\u2026';
 
-    const revealArgs = encodeURIComponent(JSON.stringify([entry.commitHash]));
-    const revealPart = `[$(git-commit) Show in RepoFlow](command:repoFlow.revealCommit?${revealArgs})`;
+    let linksLine = '';
+    if (!isUncommitted) {
+      const ghUrl = buildGitHubCommitUrl(config.remotes, entry.commitHash);
+      const ghPart = ghUrl ? `[$(link-external) Open on GitHub](${ghUrl})` : '';
 
-    const linksLine = [ghPart, revealPart].filter(Boolean).join(' \u00a0\u2502\u00a0 ');
+      const revealArgs = encodeURIComponent(JSON.stringify([entry.commitHash]));
+      const revealPart = `[$(git-commit) Show in RepoFlow](command:repoFlow.revealCommit?${revealArgs})`;
+
+      linksLine = [ghPart, revealPart].filter(Boolean).join(' \u00a0\u2502\u00a0 ');
+    }
 
     const md = new vscode.MarkdownString(
       [
