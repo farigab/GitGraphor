@@ -98,6 +98,8 @@ export interface GraphSnapshot {
   generatedAt: string;
   rows: GraphRow[];
   branches: BranchSummary[];
+  /** HEAD commit hashes of all linked (non-main) worktrees. */
+  worktreeHeads: string[];
   localChanges: WorkingTreeStatus;
   filters: GraphFilters;
   hasMore: boolean;
@@ -147,4 +149,16 @@ export interface WorktreeEntry {
   branch: string | null;
   /** True only for the primary (main) worktree. */
   isMain: boolean;
+  /** True when the worktree is locked (git worktree lock). */
+  locked: boolean;
+  /** True when the worktree has uncommitted changes. */
+  dirty: boolean;
+  /** Number of staged files. */
+  staged: number;
+  /** Number of unstaged/untracked files. */
+  unstaged: number;
+  /** Commits ahead of upstream (0 when no tracking branch). */
+  ahead: number;
+  /** Commits behind upstream (0 when no tracking branch). */
+  behind: number;
 }

@@ -254,10 +254,16 @@ export function GraphCanvas({ snapshot, selectedCommitHash, selectedUncommitted,
         });
     });
 
+    const worktreeHeadSet = useMemo(
+        () => new Set(snapshot.worktreeHeads ?? []),
+        [snapshot.worktreeHeads]
+    );
+
     const nodes = snapshot.rows.map((row) => {
         const x = 32 + row.lane * laneGap;
         const y = row.row * rowHeight + rowHeight / 2;
         const isSelected = row.commit.hash === selectedCommitHash;
+        const isWorktreeHead = worktreeHeadSet.has(row.commit.hash);
 
         return (
             <g
@@ -270,6 +276,15 @@ export function GraphCanvas({ snapshot, selectedCommitHash, selectedUncommitted,
                 <circle cx={x} cy={y} r={12} fill="transparent" />
                 <circle cx={x} cy={y} r={isSelected ? 6 : 4.5} fill={getLaneColor(row.lane)} stroke="#f8fafc" strokeWidth={isSelected ? 2 : 1.5} />
                 {row.commit.isHead ? <circle cx={x} cy={y} r={9} fill="none" stroke="#f8fafc" strokeOpacity={0.75} strokeWidth={1} /> : null}
+                {isWorktreeHead ? (
+                    <polygon
+                        points={`${x},${y - 11} ${x + 7},${y - 4} ${x + 7},${y + 4} ${x},${y + 11} ${x - 7},${y + 4} ${x - 7},${y - 4}`}
+                        fill="none"
+                        stroke="#f59e0b"
+                        strokeWidth={1.25}
+                        strokeOpacity={0.9}
+                    />
+                ) : null}
             </g>
         );
     });

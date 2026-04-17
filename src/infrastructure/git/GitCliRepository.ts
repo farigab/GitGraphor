@@ -28,7 +28,8 @@ import {
   parseCommitLog,
   parseNumstatStats,
   parseWorkingTreeStatus,
-  parseWorktreeList
+  parseWorktreeList,
+  parseWorktreeStatusV2
 } from './GitParsers';
 
 const execFileAsync = promisify(execFile);
@@ -135,12 +136,17 @@ export class GitCliRepository implements GitRepository {
       logArgs.push('--remotes');
     }
 
-    const [rawLog, branches, localChanges, repoConfig] = await Promise.all([
+    const [rawLog, branches, localChanges, repoConfig, rawWorktrees] = await Promise.all([
       this.runGit(repoRoot, logArgs),
       branchesPromise,
       localChangesPromise,
-      this.getRepoConfig(repoRoot)
+      this.getRepoConfig(repoRoot),
+      this.runGit(repoRoot, ['worktree', 'list', '--porcelain']).catch(() => '')
     ]);
+
+    const worktreeHeads = parseWorktreeList(rawWorktrees)
+      .filter((w) => !w.isMain)
+      .map((w) => w.head);
 
     const filteredCommits = parseCommitLog(rawLog, this.hasDirtyChanges(localChanges)).filter((commit) => {
       if (!filters.search) {
@@ -168,7 +174,8 @@ export class GitCliRepository implements GitRepository {
       filters,
       hasMore,
       maxLane: graph.maxLane,
-      repoConfig
+      repoConfig,
+      worktreeHeads
     };
 
     this.graphCache.set(cacheKey, snapshot);
@@ -435,7 +442,19 @@ export class GitCliRepository implements GitRepository {
 
   public async listWorktrees(repoRoot: string): Promise<WorktreeEntry[]> {
     const raw = await this.runGit(repoRoot, ['worktree', 'list', '--porcelain']);
-    return parseWorktreeList(raw);
+    const entries = parseWorktreeList(raw);
+    // Enrich each worktree with live status (dirty counts, ahead/behind).
+    const enriched = await Promise.all(
+      entries.map(async (entry) => {
+        try {
+          const statusRaw = await this.runGit(entry.path, ['status', '--porcelain=v2', '--branch']);
+          return { ...entry, ...parseWorktreeStatusV2(statusRaw) };
+        } catch {
+          return entry; // inaccessible / bare worktree — leave defaults
+        }
+      })
+    );
+    return enriched;
   }
 
   public async addWorktree(repoRoot: string, worktreePath: string, branch: string, createNew: boolean): Promise<void> {
@@ -463,6 +482,24 @@ export class GitCliRepository implements GitRepository {
 
   public async pruneWorktrees(repoRoot: string): Promise<void> {
     await this.runGit(repoRoot, ['worktree', 'prune']);
+  }
+
+  public async lockWorktree(repoRoot: string, worktreePath: string): Promise<void> {
+    await this.runGit(repoRoot, ['worktree', 'lock', worktreePath]);
+  }
+
+  public async unlockWorktree(repoRoot: string, worktreePath: string): Promise<void> {
+    await this.runGit(repoRoot, ['worktree', 'unlock', worktreePath]);
+  }
+
+  public async moveWorktree(repoRoot: string, worktreePath: string, newPath: string): Promise<void> {
+    await this.runGit(repoRoot, ['worktree', 'move', worktreePath, newPath]);
+    this.graphCache.clear();
+  }
+
+  public async addWorktreeAtCommit(repoRoot: string, worktreePath: string, commitHash: string): Promise<void> {
+    await this.runGit(repoRoot, ['worktree', 'add', '--detach', worktreePath, commitHash]);
+    this.graphCache.clear();
   }
 
   private hasDirtyChanges(localChanges: WorkingTreeStatus): boolean {

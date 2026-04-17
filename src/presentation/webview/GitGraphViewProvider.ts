@@ -524,6 +524,70 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
         );
         return;
       }
+      case 'revealWorktreeInOs': {
+        await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(message.payload.path));
+        return;
+      }
+      case 'copyWorktreePath': {
+        await vscode.env.clipboard.writeText(message.payload.path);
+        return;
+      }
+      case 'lockWorktree': {
+        const { repoRoot, path: worktreePath } = message.payload;
+        try {
+          await this.repository.lockWorktree(repoRoot, worktreePath);
+          const worktrees = await this.repository.listWorktrees(repoRoot);
+          await this.postMessage({ type: 'worktreeList', payload: { entries: worktrees } });
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          this.output.appendLine(`[worktree-lock] ${msg}`);
+          await this.postMessage({ type: 'worktreeError', payload: { message: msg } });
+        }
+        return;
+      }
+      case 'unlockWorktree': {
+        const { repoRoot, path: worktreePath } = message.payload;
+        try {
+          await this.repository.unlockWorktree(repoRoot, worktreePath);
+          const worktrees = await this.repository.listWorktrees(repoRoot);
+          await this.postMessage({ type: 'worktreeList', payload: { entries: worktrees } });
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          this.output.appendLine(`[worktree-unlock] ${msg}`);
+          await this.postMessage({ type: 'worktreeError', payload: { message: msg } });
+        }
+        return;
+      }
+      case 'moveWorktree': {
+        const { repoRoot, path: worktreePath, newPath } = message.payload;
+        try {
+          await this.withBusy('Moving worktree...', async () => {
+            await this.repository.moveWorktree(repoRoot, worktreePath, newPath);
+          });
+          const worktrees = await this.repository.listWorktrees(repoRoot);
+          await this.postMessage({ type: 'worktreeList', payload: { entries: worktrees } });
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          this.output.appendLine(`[worktree-move] ${msg}`);
+          await this.postMessage({ type: 'worktreeError', payload: { message: msg } });
+        }
+        return;
+      }
+      case 'addWorktreeAtCommit': {
+        const { repoRoot, worktreePath, commitHash } = message.payload;
+        try {
+          await this.withBusy('Adding detached worktree...', async () => {
+            await this.repository.addWorktreeAtCommit(repoRoot, worktreePath.trim(), commitHash.trim());
+          });
+          const worktrees = await this.repository.listWorktrees(repoRoot);
+          await this.postMessage({ type: 'worktreeList', payload: { entries: worktrees } });
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          this.output.appendLine(`[worktree-add-detached] ${msg}`);
+          await this.postMessage({ type: 'worktreeError', payload: { message: msg } });
+        }
+        return;
+      }
       default:
         return;
     }

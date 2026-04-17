@@ -33,8 +33,14 @@ export type WebviewToExtensionMessage =
   | { type: 'dropStash'; payload: { repoRoot: string; ref: string } }
   | { type: 'listWorktrees'; payload: { repoRoot: string } }
   | { type: 'addWorktree'; payload: { repoRoot: string; branch: string; createNew: boolean; worktreePath: string } }
+  | { type: 'addWorktreeAtCommit'; payload: { repoRoot: string; worktreePath: string; commitHash: string } }
   | { type: 'removeWorktree'; payload: { repoRoot: string; path: string; force: boolean } }
-  | { type: 'openWorktreeInWindow'; payload: { path: string } };
+  | { type: 'openWorktreeInWindow'; payload: { path: string } }
+  | { type: 'revealWorktreeInOs'; payload: { path: string } }
+  | { type: 'copyWorktreePath'; payload: { path: string } }
+  | { type: 'lockWorktree'; payload: { repoRoot: string; path: string } }
+  | { type: 'unlockWorktree'; payload: { repoRoot: string; path: string } }
+  | { type: 'moveWorktree'; payload: { repoRoot: string; path: string; newPath: string } };
 
 export type ExtensionToWebviewMessage =
   | { type: 'graphSnapshot'; payload: GraphSnapshot }

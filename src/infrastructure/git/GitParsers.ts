@@ -361,8 +361,11 @@ export function parseNumstatStats(raw: string): CommitStats {
  * HEAD <sha1>
  * branch refs/heads/<name>   ← omitted when detached
  * [detached]                 ← present when detached
+ * locked [reason]            ← present when locked
  * ```
  * The first block is always the main (primary) worktree.
+ * Status fields (dirty/staged/unstaged/ahead/behind) default to 0/false;
+ * callers enrich them via parseWorktreeStatusV2.
  */
 export function parseWorktreeList(raw: string): WorktreeEntry[] {
   const entries: WorktreeEntry[] = [];
@@ -377,6 +380,7 @@ export function parseWorktreeList(raw: string): WorktreeEntry[] {
     let worktreePath = '';
     let head = '';
     let branch: string | null = null;
+    let locked = false;
 
     for (const line of block.split(/\r?\n/)) {
       if (line.startsWith('worktree ')) {
@@ -385,14 +389,48 @@ export function parseWorktreeList(raw: string): WorktreeEntry[] {
         head = line.slice('HEAD '.length).trim();
       } else if (line.startsWith('branch ')) {
         branch = line.slice('branch '.length).trim();
+      } else if (line.startsWith('locked')) {
+        locked = true;
       }
       // 'detached' keyword → branch stays null (already the default)
     }
 
     if (worktreePath && head) {
-      entries.push({ path: worktreePath, head, branch, isMain: i === 0 });
+      entries.push({ path: worktreePath, head, branch, isMain: i === 0, locked, dirty: false, staged: 0, unstaged: 0, ahead: 0, behind: 0 });
     }
   }
 
   return entries;
+}
+
+/**
+ * Parses `git status --porcelain=v2 --branch` output and returns dirty-status fields
+ * that can be merged into a WorktreeEntry.
+ */
+export function parseWorktreeStatusV2(raw: string): Pick<WorktreeEntry, 'dirty' | 'staged' | 'unstaged' | 'ahead' | 'behind'> {
+  let staged = 0;
+  let unstaged = 0;
+  let ahead = 0;
+  let behind = 0;
+
+  for (const line of raw.split(/\r?\n/)) {
+    if (line.startsWith('# branch.ab ')) {
+      // Format: # branch.ab +<ahead> -<behind>
+      const match = line.match(/\+([0-9]+)\s+-([0-9]+)/);
+      if (match) {
+        ahead = parseInt(match[1], 10);
+        behind = parseInt(match[2], 10);
+      }
+    } else if (line.startsWith('1 ') || line.startsWith('2 ')) {
+      // Format: 1 XY ... or 2 XY ...
+      const xy = line.slice(2, 4);
+      if (xy[0] && xy[0] !== '.' && xy[0] !== '?') staged++;
+      if (xy[1] && xy[1] !== '.' && xy[1] !== '?') unstaged++;
+    } else if (line.startsWith('? ') || line.startsWith('u ')) {
+      // Untracked / unmerged → always dirty
+      unstaged++;
+    }
+  }
+
+  return { dirty: staged > 0 || unstaged > 0, staged, unstaged, ahead, behind };
 }
