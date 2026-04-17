@@ -72,8 +72,11 @@ export function App() {
                     return;
                 case 'revealCommit': {
                     const { commitHash } = message.payload;
-                    // commitDetail was already received before this message;
-                    // give React one tick to render the selected row, then scroll to it.
+                    // Prime the guard so the commitDetail message that follows is accepted.
+                    requestedCommitHashRef.current = commitHash;
+                    setSelectedCommitHash(commitHash);
+                    setIsCommitDetailsOpen(true);
+                    // Give React one tick to render the selected row, then scroll to it.
                     window.setTimeout(() => {
                         document.querySelector(`[data-hash="${commitHash}"]`)
                             ?.scrollIntoView({ block: 'center', behavior: 'smooth' });

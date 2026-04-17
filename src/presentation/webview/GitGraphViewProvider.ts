@@ -163,14 +163,16 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
         this.repoStatusBar.tooltip = buildRepoSummary(status);
       }
 
+      if (this.pendingRevealHash) {
+        // Send revealCommit BEFORE commitDetail so the webview can prime
+        // requestedCommitHashRef before the detail message arrives.
+        await this.postMessage({ type: 'revealCommit', payload: { commitHash: this.pendingRevealHash } });
+        this.pendingRevealHash = undefined;
+      }
+
       if (this.selectedCommitHash) {
         const detail = await this.repository.getCommitDetail(snapshot.repoRoot, this.selectedCommitHash);
         await this.postMessage({ type: 'commitDetail', payload: detail });
-      }
-
-      if (this.pendingRevealHash) {
-        await this.postMessage({ type: 'revealCommit', payload: { commitHash: this.pendingRevealHash } });
-        this.pendingRevealHash = undefined;
       }
     });
   }
