@@ -52,9 +52,12 @@ export class BranchTreeItem extends vscode.TreeItem {
       this.kind = 'branch';
       this.branch = b;
 
-      // Show tracking info (ahead/behind) as description
-      if (b.tracking) {
-        this.description = b.tracking;
+      // Show ahead/behind arrows as description
+      const trackParts: string[] = [];
+      if (b.ahead) trackParts.push(`↑${b.ahead}`);
+      if (b.behind) trackParts.push(`↓${b.behind}`);
+      if (trackParts.length > 0) {
+        this.description = trackParts.join(' ');
       } else if (b.upstream) {
         this.description = `→ ${b.upstream}`;
       }

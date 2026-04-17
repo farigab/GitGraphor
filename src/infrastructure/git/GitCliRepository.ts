@@ -218,7 +218,7 @@ export class GitCliRepository implements GitRepository {
   public async getBranches(repoRoot: string): Promise<BranchSummary[]> {
     const raw = await this.runGit(repoRoot, [
       'for-each-ref',
-      '--format=%(refname)	%(objectname)	%(upstream:short)	%(HEAD)	%(upstream:trackshort)',
+      '--format=%(refname)	%(objectname)	%(upstream:short)	%(HEAD)	%(upstream:track)',
       'refs/heads',
       'refs/remotes'
     ]);

@@ -56,6 +56,8 @@ export interface BranchSummary {
   targetHash: string;
   upstream?: string;
   tracking?: string;
+  ahead?: number;
+  behind?: number;
 }
 
 export interface WorkingTreeFile {

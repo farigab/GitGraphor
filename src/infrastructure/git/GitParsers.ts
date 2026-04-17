@@ -71,9 +71,13 @@ export function parseBranchList(raw: string): BranchSummary[] {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const [name, targetHash, upstream, headMarker, tracking] = line.split('\t');
+      const [name, targetHash, upstream, headMarker, track] = line.split('\t');
       const remote = name.startsWith('refs/remotes/');
       const shortName = name.replace(/^refs\/heads\//, '').replace(/^refs\/remotes\//, '');
+
+      // track is like "[ahead 2]", "[behind 1]", "[ahead 2, behind 1]" or ""
+      const aheadMatch = track ? /ahead (\d+)/.exec(track) : null;
+      const behindMatch = track ? /behind (\d+)/.exec(track) : null;
 
       return {
         name,
@@ -82,7 +86,8 @@ export function parseBranchList(raw: string): BranchSummary[] {
         current: headMarker === '*',
         targetHash,
         upstream: upstream || undefined,
-        tracking: tracking || undefined
+        ahead: aheadMatch ? parseInt(aheadMatch[1], 10) : undefined,
+        behind: behindMatch ? parseInt(behindMatch[1], 10) : undefined
       } satisfies BranchSummary;
     })
     .filter((branch) => branch.shortName !== 'HEAD');
