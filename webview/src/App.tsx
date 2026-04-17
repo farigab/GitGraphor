@@ -352,7 +352,10 @@ export function App() {
                                 detail={selectedCommit}
                                 repoRoot={snapshot.repoRoot}
                                 onOpenDiff={handleOpenDiff}
-                                onClose={() => setIsCommitDetailsOpen(false)}
+                                onClose={() => {
+                                    setIsCommitDetailsOpen(false);
+                                    requestedCommitHashRef.current = undefined;
+                                }}
                             />
                         }
                     </aside>
