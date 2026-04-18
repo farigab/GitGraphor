@@ -125,6 +125,7 @@ export function activate(context: vscode.ExtensionContext): void {
         items.push({ label: '$(sync) Fetch', description: 'Update remote refs', action: 'fetch' });
         items.push({ label: '', kind: vscode.QuickPickItemKind.Separator, description: '', action: '' });
         items.push({ label: '$(git-branch) Open Graph', description: '', action: 'openGraph' });
+        items.push({ label: '$(git-branch) Create Branch...', description: '', action: 'createBranch' });
 
         const choice = await vscode.window.showQuickPick(items, {
           title: `RepoFlow — ${branch}`,
@@ -145,7 +146,8 @@ export function activate(context: vscode.ExtensionContext): void {
           pull: () => runAndRefresh((r) => repository.pull(r)),
           push: () => runAndRefresh((r) => repository.push(r)),
           fetch: () => runAndRefresh((r) => repository.fetch(r)),
-          openGraph: async () => graphViewProvider.openOrReveal()
+          openGraph: async () => graphViewProvider.openOrReveal(),
+          createBranch: async () => vscode.commands.executeCommand('repoFlow.createBranch'),
         };
 
         await actions[choice.action]?.();
