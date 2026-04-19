@@ -55,13 +55,13 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.createFileSystemWatcher('**/.git/index'),
     vscode.workspace.createFileSystemWatcher('**/.git/refs/**'),
     vscode.workspace.createFileSystemWatcher('**/.git/worktrees/**'),
-    // Special-state files (merge, rebase, cherry-pick, revert, bisect)
+    vscode.workspace.createFileSystemWatcher('**/.git/COMMIT_EDITMSG'),
     vscode.workspace.createFileSystemWatcher('**/.git/MERGE_HEAD'),
     vscode.workspace.createFileSystemWatcher('**/.git/CHERRY_PICK_HEAD'),
     vscode.workspace.createFileSystemWatcher('**/.git/REVERT_HEAD'),
     vscode.workspace.createFileSystemWatcher('**/.git/BISECT_LOG'),
     vscode.workspace.createFileSystemWatcher('**/.git/rebase-merge/**'),
-    vscode.workspace.createFileSystemWatcher('**/.git/rebase-apply/**')
+    vscode.workspace.createFileSystemWatcher('**/.git/rebase-apply/**'),
   ];
 
   for (const watcher of gitWatchers) {
