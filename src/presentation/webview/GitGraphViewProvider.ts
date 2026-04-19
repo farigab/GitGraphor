@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
-import type { BranchSummary, GraphFilters, RepoRemote } from '../../core/models';
+import type { GraphFilters } from '../../core/models';
 import type { GitRepository } from '../../core/ports/GitRepository';
-import { createNonce } from '../../shared/nonce';
+
 import type { ExtensionToWebviewMessage, WebviewToExtensionMessage } from '../../shared/protocol';
 import { buildRepoStatusBarText, buildRepoSummary } from '../../shared/repoSummary';
+import { renderHtml } from './GitGraphRenderer';
+import { buildPrUrl, resolvePreferredRemoteForPullRequest } from './GitGraphUtils';
 
 export class GitGraphViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'repoFlow.graphPanel';
@@ -45,7 +47,7 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
       ]
     };
 
-    webviewView.webview.html = this.renderHtml(webviewView.webview);
+    webviewView.webview.html = renderHtml(this.extensionUri, webviewView.webview);
 
     webviewView.webview.onDidReceiveMessage(
       (message: WebviewToExtensionMessage) => { void this.handleMessage(message); },
@@ -94,7 +96,7 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
     );
 
     panel.iconPath = vscode.Uri.joinPath(this.extensionUri, 'media', 'icon.svg');
-    panel.webview.html = this.renderHtml(panel.webview);
+    panel.webview.html = renderHtml(this.extensionUri, panel.webview);
 
     panel.webview.onDidReceiveMessage(
       (message: WebviewToExtensionMessage) => { void this.handleMessage(message); },
@@ -438,11 +440,11 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
           this.repository.getRepoConfig(repoRoot),
           this.repository.getBranches(repoRoot)
         ]);
-        const remote = this.resolvePreferredRemoteForPullRequest(sourceBranch, branches, config.remotes);
+        const remote = resolvePreferredRemoteForPullRequest(sourceBranch, branches, config.remotes);
         const remoteUrl = remote?.url ?? '';
 
         // Detect GitHub / GitLab / Bitbucket and build the compare URL
-        const prUrl = this.buildPrUrl(remoteUrl, sourceBranch, targetBranch, title, description);
+        const prUrl = buildPrUrl(remoteUrl, sourceBranch, targetBranch, title, description);
         if (prUrl) {
           await vscode.env.openExternal(vscode.Uri.parse(prUrl));
         } else {
@@ -658,52 +660,7 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private resolvePreferredRemoteForPullRequest(sourceBranch: string, branches: BranchSummary[], remotes: RepoRemote[]): RepoRemote | undefined {
-    if (remotes.length === 0) {
-      return undefined;
-    }
-
-    const source = branches.find((branch) => !branch.remote && branch.shortName === sourceBranch);
-    const upstreamRemoteName = source?.upstream?.split('/')[0];
-    if (upstreamRemoteName) {
-      const upstreamRemote = remotes.find((remote) => remote.name === upstreamRemoteName);
-      if (upstreamRemote) {
-        return upstreamRemote;
-      }
-    }
-
-    const origin = remotes.find((remote) => remote.name === 'origin');
-    return origin ?? remotes[0];
-  }
-
-  private buildPrUrl(remoteUrl: string, source: string, target: string, title: string, description: string): string | null {
-    // Normalize SSH → HTTPS
-    const normalized = remoteUrl
-      .replace(/^git@github\.com:/, 'https://github.com/')
-      .replace(/^git@gitlab\.com:/, 'https://gitlab.com/')
-      .replace(/^git@bitbucket\.org:/, 'https://bitbucket.org/')
-      .replace(/\.git$/, '');
-
-    const enc = encodeURIComponent;
-    const encodedTitle = title ? `&title=${enc(title)}` : '';
-    const encodedDescription = description ? `&body=${enc(description)}` : '';
-
-    if (/github\.com/.test(normalized)) {
-      const base = `${normalized}/compare/${enc(target)}...${enc(source)}`;
-      const params = `?quick_pull=1${encodedTitle}${encodedDescription}`;
-      return base + params;
-    }
-
-    if (/gitlab\.com/.test(normalized)) {
-      return `${normalized}/-/merge_requests/new?merge_request[source_branch]=${enc(source)}&merge_request[target_branch]=${enc(target)}${title ? `&merge_request[title]=${enc(title)}` : ''}${description ? `&merge_request[description]=${enc(description)}` : ''}`;
-    }
-
-    if (/bitbucket\.org/.test(normalized)) {
-      return `${normalized}/pull-requests/new?source=${enc(source)}&dest=${enc(target)}${title ? `&title=${enc(title)}` : ''}${description ? `&description=${enc(description)}` : ''}`;
-    }
-
-    return null;
-  }
+  // Remote/PR helpers moved to GitGraphUtils.ts
 
   private async executeRepositoryAction(label: string, action: () => Promise<void>): Promise<void> {
     await this.withBusy(label, async () => {
@@ -744,37 +701,5 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
     await Promise.all(sends);
   }
 
-  private renderHtml(webview: vscode.Webview): string {
-    const nonce = createNonce();
-    const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview', 'index.js'));
-    const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview', 'index.css'));
-    const iconUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'hero.svg'));
-    const csp = [
-      "default-src 'none'",
-      `img-src ${webview.cspSource} https: data:`,
-      `style-src ${webview.cspSource} 'unsafe-inline'`,
-      `font-src ${webview.cspSource} data:`,
-      `script-src 'nonce-${nonce}'`
-    ].join('; ');
 
-    return `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="${csp}" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="${styleUri}" />
-    <title>RepoFlow</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script nonce="${nonce}">
-      window.__REPOFLOW_ASSETS__ = {
-        hero: '${iconUri}'
-      };
-    </script>
-    <script nonce="${nonce}" type="module" src="${scriptUri}"></script>
-  </body>
-</html>`;
-  }
 }
