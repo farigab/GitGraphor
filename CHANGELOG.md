@@ -1,12 +1,20 @@
 # Changelog
 
+## 1.1.9 — 2026-04-20
+
+- **Changed:** Refactor `buildRepoSummary` to simplify summary construction and reduce cognitive complexity.
+
+## Included commits - 1.1.9
+
+- [08c5417](https://github.com/farigab/repoFlow/commit/08c54170915d7e6a25d3af498bb0c2572a796c16) — refactor: streamline repo summary construction by modularizing helper functions
+
 ## 1.1.8 — 2026-04-19
 
 - **Added:** Centralized Git watchers and registration for repository events; improved command registration for repo-level actions.
 - **Changed:** Refactor of model imports and module structure to reduce coupling and simplify component wiring.
 - **Fixed:** Add watcher for `COMMIT_EDITMSG` to improve detection of special Git states (merge/rebase/cherry-pick).
 
-## Included commits
+## Included commits - 1.1.8
 
 - [1dda154](https://github.com/farigab/repoFlow/commit/1dda154) — feat: implement Git watchers and command registration for improved repository management
 - [7b7b801](https://github.com/farigab/repoFlow/commit/7b7b801) — fix: add file system watcher for COMMIT_EDITMSG to enhance Git state tracking
