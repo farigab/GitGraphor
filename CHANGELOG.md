@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.3 - 2026-04-23
+
+- **Fixed:** Prevent passing a stray pathspec `.` to `git merge` when merging from the Branches view. The extension now sanitizes branch names and rejects obviously invalid inputs before invoking Git, avoiding errors like `git -C <repo> merge teste .`.
+- **Changed:** `repoFlow.branches.merge` now passes explicit ref names (`refs/heads/<name>` or `refs/remotes/<remote>/<name>`) to the repository layer to avoid ambiguity between branch names and pathspecs.
+- **Changed:** `GitCliRepository.merge` trims and sanitizes the supplied source ref and throws a friendly error for invalid values.
+
 ## 1.2.2 - 2026-04-22
 
 - **Fixed:** Creating a branch from a remote ref (e.g. `origin/name`) could leave HEAD on the previous branch causing subsequent commits to land on the wrong branch (e.g. `develop`). `createBranch` now ensures the new branch is checked out and sets upstream when appropriate.
