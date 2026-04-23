@@ -6,6 +6,10 @@
 - **Changed:** `repoFlow.branches.merge` now passes explicit ref names (`refs/heads/<name>` or `refs/remotes/<remote>/<name>`) to the repository layer to avoid ambiguity between branch names and pathspecs.
 - **Changed:** `GitCliRepository.merge` trims and sanitizes the supplied source ref and throws a friendly error for invalid values.
 
+## Included commits - 1.2.3
+
+- [fcf7720](https://github.com/farigab/repoFlow/commit/fcf7720) — fix: sanitize merge inputs and avoid passing pathspec '.' to `git merge`
+
 ## 1.2.2 - 2026-04-22
 
 - **Fixed:** Creating a branch from a remote ref (e.g. `origin/name`) could leave HEAD on the previous branch causing subsequent commits to land on the wrong branch (e.g. `develop`). `createBranch` now ensures the new branch is checked out and sets upstream when appropriate.
